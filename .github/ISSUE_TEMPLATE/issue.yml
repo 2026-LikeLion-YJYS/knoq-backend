@@ -1,0 +1,23 @@
+name: "이슈 추가하기"
+description: "새로운 이슈를 추가합니다."
+title: "[도메인명(camelCase)] 구현할 기능 "
+
+body:
+  - type: textarea
+    id: feature
+    attributes:
+      label: 🌈 어떤 기능인가요?
+      description: 구현할 기능을 간단히 작성해주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: todo
+    attributes:
+      label: ✅ To Do
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+    validations:
+      required: true
