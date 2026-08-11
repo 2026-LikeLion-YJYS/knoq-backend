@@ -5,15 +5,19 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface SavedProductRepository extends JpaRepository<SavedProduct, Long> {
+public interface SavedProductRepository
+        extends JpaRepository<SavedProduct, Long> {
 
-    List<SavedProduct> findBySessionIdOrderBySavedAtDesc(String sessionId);
+    List<SavedProduct> findBySessionIdOrderBySavedAtDesc(
+            String sessionId
+    );
 
-    Optional<SavedProduct> findBySessionIdAndProductId(String sessionId, String productId);
+    Optional<SavedProduct> findBySessionIdAndProductId(
+            String sessionId,
+            String productId
+    );
 
     long countBySessionId(String sessionId);
 
-    void deleteBySessionIdAndProductId(String sessionId, String productId);
-
-    void deleteBySessionId(String sessionId);   // FR-400 세션 종료 시 사용
+    void deleteBySessionId(String sessionId);
 }

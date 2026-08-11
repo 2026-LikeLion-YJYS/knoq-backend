@@ -10,43 +10,87 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SavedProductService {
 
-    private static final int MAX_SAVED = 9;   // TODO 상한 확정 필요
+    // TODO: 보관함 저장 상한 확정 후 수정
+    private static final int MAX_SAVED = 9;
 
     private final SavedProductRepository repository;
 
     @Transactional
-    public SavedProduct saveFromCamera(String sessionId, String productId) {
-        return save(sessionId, productId, SavedProductSource.CAMERA);
+    public SavedProduct saveFromCamera(
+            String sessionId,
+            String productId
+    ) {
+        return save(
+                sessionId,
+                productId,
+                SavedProductSource.CAMERA
+        );
     }
 
     @Transactional
-    public SavedProduct saveFromRecommend(String sessionId, String productId) {
-        return save(sessionId, productId, SavedProductSource.RECOMMEND);
+    public SavedProduct saveFromRecommend(
+            String sessionId,
+            String productId
+    ) {
+        return save(
+                sessionId,
+                productId,
+                SavedProductSource.RECOMMEND
+        );
     }
 
-    private SavedProduct save(String sessionId, String productId, SavedProductSource source) {
-        return repository.findBySessionIdAndProductId(sessionId, productId)
+    private SavedProduct save(
+            String sessionId,
+            String productId,
+            SavedProductSource source
+    ) {
+
+        return repository
+                .findBySessionIdAndProductId(sessionId, productId)
                 .orElseGet(() -> {
+
                     if (repository.countBySessionId(sessionId) >= MAX_SAVED) {
-                        throw new IllegalStateException("SAVED_PRODUCT_LIMIT_EXCEEDED");
+                        throw new IllegalStateException(
+                                "SAVED_PRODUCT_LIMIT_EXCEEDED"
+                        );
                     }
-                    SavedProduct saved = (source == SavedProductSource.CAMERA)
-                            ? SavedProduct.ofCamera(sessionId, productId)
-                            : SavedProduct.ofRecommend(sessionId, productId);
-                    return repository.save(saved);
+
+                    SavedProduct savedProduct =
+                            SavedProduct.of(
+                                    sessionId,
+                                    productId,
+                                    source
+                            );
+
+                    return repository.save(savedProduct);
                 });
     }
 
     @Transactional(readOnly = true)
     public List<SavedProduct> findAll(String sessionId) {
-        return repository.findBySessionIdOrderBySavedAtDesc(sessionId);
+        return repository
+                .findBySessionIdOrderBySavedAtDesc(sessionId);
     }
 
     @Transactional
-    public void delete(String sessionId, String productId) {
-        SavedProduct saved = repository.findBySessionIdAndProductId(sessionId, productId)
-                .orElseThrow(() -> new IllegalArgumentException("SAVED_PRODUCT_NOT_FOUND"));
-        repository.delete(saved);
+    public void delete(
+            String sessionId,
+            String productId
+    ) {
+
+        SavedProduct savedProduct =
+                repository
+                        .findBySessionIdAndProductId(
+                                sessionId,
+                                productId
+                        )
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "SAVED_PRODUCT_NOT_FOUND"
+                                )
+                        );
+
+        repository.delete(savedProduct);
     }
 
     @Transactional

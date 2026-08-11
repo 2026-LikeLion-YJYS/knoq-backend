@@ -4,13 +4,16 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(
         name = "saved_product",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"session_id", "product_id"})
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {"session_id", "product_id"}
+        )
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -30,21 +33,25 @@ public class SavedProduct {
     @Column(nullable = false, length = 20)
     private SavedProductSource source;
 
-    @Column(name = "saved_at", nullable = false)
+    @CreationTimestamp
+    @Column(name = "saved_at", nullable = false, updatable = false)
     private LocalDateTime savedAt;
 
-    private SavedProduct(String sessionId, String productId, SavedProductSource source) {
+    private SavedProduct(
+            String sessionId,
+            String productId,
+            SavedProductSource source
+    ) {
         this.sessionId = sessionId;
         this.productId = productId;
         this.source = source;
-        this.savedAt = LocalDateTime.now();
     }
 
-    public static SavedProduct ofCamera(String sessionId, String productId) {
-        return new SavedProduct(sessionId, productId, SavedProductSource.CAMERA);
-    }
-
-    public static SavedProduct ofRecommend(String sessionId, String productId) {
-        return new SavedProduct(sessionId, productId, SavedProductSource.RECOMMEND);
+    public static SavedProduct of(
+            String sessionId,
+            String productId,
+            SavedProductSource source
+    ) {
+        return new SavedProduct(sessionId, productId, source);
     }
 }
