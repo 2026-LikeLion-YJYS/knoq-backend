@@ -1,5 +1,8 @@
-package com.knoq.knoq.saved;
+package com.knoq.knoq.saved.service;
 
+import com.knoq.knoq.saved.entity.SavedProduct;
+import com.knoq.knoq.saved.repository.SavedProductRepository;
+import com.knoq.knoq.saved.entity.SavedProductSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

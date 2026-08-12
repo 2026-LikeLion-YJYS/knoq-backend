@@ -1,5 +1,6 @@
-package com.knoq.knoq.saved;
+package com.knoq.knoq.saved.repository;
 
+import com.knoq.knoq.saved.entity.SavedProduct;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

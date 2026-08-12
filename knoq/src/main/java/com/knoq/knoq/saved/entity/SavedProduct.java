@@ -1,4 +1,4 @@
-package com.knoq.knoq.saved;
+package com.knoq.knoq.saved.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
