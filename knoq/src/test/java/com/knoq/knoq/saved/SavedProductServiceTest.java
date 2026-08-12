@@ -1,5 +1,6 @@
 package com.knoq.knoq.saved;
 
+import com.knoq.knoq.saved.service.SavedProductService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
