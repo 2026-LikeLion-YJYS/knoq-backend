@@ -2,6 +2,8 @@ package com.knoq.knoq.sessions.service;
 
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.sessions.dto.ConsentRequest;
+import com.knoq.knoq.sessions.dto.ConsentsResponse;
 import com.knoq.knoq.sessions.dto.CreateSessionRequest;
 import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
@@ -79,6 +81,7 @@ class SessionServiceTest {
 
     @Test
     void 만료된_세션이면_예외를_던진다() {
+        // 이미 만료 시각이 지난 세션을 직접 만들어서 저장
         Session expiredSession = Session.of(
                 "sess_expired_test",
                 "token_expired_test",
@@ -88,6 +91,27 @@ class SessionServiceTest {
         sessionRepository.save(expiredSession);
 
         assertThatThrownBy(() -> sessionService.getSession("sess_expired_test"))
+                .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void 필수_약관에_모두_동의하면_저장된다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        ConsentRequest request = new ConsentRequest(true, true, true, false);
+
+        ConsentsResponse response = sessionService.agreeConsents(created.sessionId(), request);
+
+        assertThat(response.consents()).hasSize(4);
+        assertThat(response.consents())
+                .allSatisfy(item -> assertThat(item.agreedAt()).isNotNull());
+    }
+
+    @Test
+    void 필수_약관을_하나라도_동의안하면_예외를_던진다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        ConsentRequest request = new ConsentRequest(true, true, false, false); // over14 미동의
+
+        assertThatThrownBy(() -> sessionService.agreeConsents(created.sessionId(), request))
                 .isInstanceOf(ApiException.class);
     }
 }

@@ -2,6 +2,9 @@ package com.knoq.knoq.sessions.service;
 
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.sessions.dto.ConsentRequest;
+import com.knoq.knoq.sessions.dto.ConsentType;
+import com.knoq.knoq.sessions.dto.ConsentsResponse;
 import com.knoq.knoq.sessions.dto.CreateSessionRequest;
 import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -61,25 +65,58 @@ public class SessionService {
 
     @Transactional(readOnly = true)
     public GetSessionResponse getSession(String sessionId) {
-        // 1. sessionId로 세션 찾기. 없으면 404
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
+        Session session = findValidSession(sessionId);
 
-        // 2. 만료 시각이 지났으면 410 (조회 자체는 됐지만 이미 유효기간이 끝났다는 뜻)
-        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new ApiException(ErrorCode.SESSION_EXPIRED);
-        }
-
-        // 3. storeId로 매장 이름 찾기
+        // storeId로 매장 이름 찾기
         Store store = storeRepository.findById(session.getStoreId())
                 .orElseThrow(() -> new ApiException(ErrorCode.INVALID_STORE_CODE));
 
-        // 4. 응답 형태로 반환
         return new GetSessionResponse(
                 session.getId(),
                 store.getStoreName(),
                 session.getExpiresAt()
         );
+    }
+
+    @Transactional
+    public ConsentsResponse agreeConsents(String sessionId, ConsentRequest request) {
+        Session session = findValidSession(sessionId);
+
+        // 필수 3개(이용약관·개인정보·만14세) 중 하나라도 false면 400
+        if (!request.termsOfService() || !request.privacyPolicy() || !request.over14()) {
+            throw new ApiException(ErrorCode.CONSENT_REQUIRED);
+        }
+
+        LocalDateTime consentedAt = LocalDateTime.now();
+        session.agreeConsents(
+                request.termsOfService(),
+                request.privacyPolicy(),
+                request.over14(),
+                request.marketingOptIn(),
+                consentedAt
+        );
+        // sessionRepository.save() 호출 안 함: session은 findValidSession에서 findById로 가져온
+        // "영속 상태" 객체라서, @Transactional 메서드가 끝날 때 바뀐 값이 자동으로 DB에 반영됨 (더티 체킹)
+
+        return new ConsentsResponse(List.of(
+                new ConsentsResponse.ConsentItem(ConsentType.TERMS_OF_SERVICE, request.termsOfService(), consentedAt),
+                new ConsentsResponse.ConsentItem(ConsentType.PRIVACY_POLICY, request.privacyPolicy(), consentedAt),
+                new ConsentsResponse.ConsentItem(ConsentType.OVER14, request.over14(), consentedAt),
+                new ConsentsResponse.ConsentItem(ConsentType.MARKETING_OPT_IN, request.marketingOptIn(), consentedAt)
+        ));
+    }
+
+    // sessionId로 세션을 찾고, 없으면 404 / 만료됐으면 410을 던지는 공통 로직
+    // (getSession, agreeConsents 둘 다 "유효한 세션인지 확인"이 먼저 필요해서 메서드로 뺌)
+    private Session findValidSession(String sessionId) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
+
+        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new ApiException(ErrorCode.SESSION_EXPIRED);
+        }
+
+        return session;
     }
 
     private String generateSessionId() {
