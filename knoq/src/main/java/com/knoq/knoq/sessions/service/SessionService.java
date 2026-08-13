@@ -4,6 +4,7 @@ import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.sessions.dto.CreateSessionRequest;
 import com.knoq.knoq.sessions.dto.CreateSessionResponse;
+import com.knoq.knoq.sessions.dto.GetSessionResponse;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.repository.SessionRepository;
 import com.knoq.knoq.store.entity.Store;
@@ -53,6 +54,29 @@ public class SessionService {
         return new CreateSessionResponse(
                 session.getId(),
                 session.getToken(),
+                store.getStoreName(),
+                session.getExpiresAt()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public GetSessionResponse getSession(String sessionId) {
+        // 1. sessionId로 세션 찾기. 없으면 404
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 2. 만료 시각이 지났으면 410 (조회 자체는 됐지만 이미 유효기간이 끝났다는 뜻)
+        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new ApiException(ErrorCode.SESSION_EXPIRED);
+        }
+
+        // 3. storeId로 매장 이름 찾기
+        Store store = storeRepository.findById(session.getStoreId())
+                .orElseThrow(() -> new ApiException(ErrorCode.INVALID_STORE_CODE));
+
+        // 4. 응답 형태로 반환
+        return new GetSessionResponse(
+                session.getId(),
                 store.getStoreName(),
                 session.getExpiresAt()
         );
