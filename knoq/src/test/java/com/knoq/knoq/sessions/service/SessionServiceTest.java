@@ -4,6 +4,9 @@ import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.sessions.dto.CreateSessionRequest;
 import com.knoq.knoq.sessions.dto.CreateSessionResponse;
+import com.knoq.knoq.sessions.dto.GetSessionResponse;
+import com.knoq.knoq.sessions.entity.Session;
+import com.knoq.knoq.sessions.repository.SessionRepository;
 import com.knoq.knoq.store.entity.Store;
 import com.knoq.knoq.store.repository.StoreRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,9 +30,14 @@ class SessionServiceTest {
     @Autowired
     private StoreRepository storeRepository;
 
+    @Autowired
+    private SessionRepository sessionRepository;
+
+    private Store testStore;
+
     @BeforeEach
     void setUp() {
-        storeRepository.save(Store.of("TEST-001", "테스트 매장"));
+        testStore = storeRepository.save(Store.of("TEST-001", "테스트 매장"));
     }
 
     @Test
@@ -47,6 +57,37 @@ class SessionServiceTest {
         CreateSessionRequest request = new CreateSessionRequest("NOT-EXIST");
 
         assertThatThrownBy(() -> sessionService.createSession(request))
+                .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void 존재하는_세션을_조회하면_정보를_반환한다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+
+        GetSessionResponse response = sessionService.getSession(created.sessionId());
+
+        assertThat(response.sessionId()).isEqualTo(created.sessionId());
+        assertThat(response.storeName()).isEqualTo("테스트 매장");
+        assertThat(response.expiresAt()).isEqualTo(created.expiresAt());
+    }
+
+    @Test
+    void 존재하지_않는_세션ID면_예외를_던진다() {
+        assertThatThrownBy(() -> sessionService.getSession("sess_not_exist"))
+                .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void 만료된_세션이면_예외를_던진다() {
+        Session expiredSession = Session.of(
+                "sess_expired_test",
+                "token_expired_test",
+                testStore.getId(),
+                LocalDateTime.now().minusMinutes(1) // 1분 전 = 이미 만료됨
+        );
+        sessionRepository.save(expiredSession);
+
+        assertThatThrownBy(() -> sessionService.getSession("sess_expired_test"))
                 .isInstanceOf(ApiException.class);
     }
 }
