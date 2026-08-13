@@ -34,3 +34,7 @@
 build/
 dist/
 out/
+
+
+application.yml
+application-*.yml
