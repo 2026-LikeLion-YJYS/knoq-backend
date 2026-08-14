@@ -27,9 +27,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -267,5 +267,28 @@ class SessionServiceTest {
         Session found = sessionRepository.findById(created.sessionId()).orElseThrow();
         assertThat(found.getExpiresAt()).isBeforeOrEqualTo(LocalDateTime.now());
         assertThat(events.stream(SessionFinishedEvent.class)).hasSize(1);
+    }
+
+    @Test
+    void ACCOUNT_세션에_로그아웃하면_PRIVATE로_돌아간다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        when(kakaoApiClient.getKakaoUserId("valid-token")).thenReturn(Optional.of(888L));
+        sessionService.kakaoLogin(created.sessionId(), new KakaoLoginRequest("valid-token")); // ACCOUNT로 전환
+
+        sessionService.logout(created.sessionId());
+
+        Session found = sessionRepository.findById(created.sessionId()).orElseThrow();
+        assertThat(found.getStorageScope()).isEqualTo(StorageScope.PRIVATE);
+        assertThat(found.getAccountId()).isNull();
+    }
+
+    @Test
+    void 이미_PRIVATE인_세션에_로그아웃해도_에러_없이_그대로다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+
+        sessionService.logout(created.sessionId());
+
+        Session found = sessionRepository.findById(created.sessionId()).orElseThrow();
+        assertThat(found.getStorageScope()).isEqualTo(StorageScope.PRIVATE);
     }
 }
