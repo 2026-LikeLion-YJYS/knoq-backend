@@ -7,6 +7,8 @@ import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
 import com.knoq.knoq.sessions.dto.KakaoLoginRequest;
 import com.knoq.knoq.sessions.dto.KakaoLoginResponse;
+import com.knoq.knoq.sessions.dto.NicknameRequest;
+import com.knoq.knoq.sessions.dto.NicknameResponse;
 import com.knoq.knoq.sessions.dto.StorageScopeRequest;
 import com.knoq.knoq.sessions.dto.StorageScopeResponse;
 import com.knoq.knoq.sessions.service.SessionService;
@@ -77,6 +79,16 @@ public class SessionController {
             @Valid @RequestBody KakaoLoginRequest request
     ) {
         KakaoLoginResponse response = sessionService.kakaoLogin(sessionId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "닉네임 설정")
+    @PutMapping("/{sessionId}/nickname")
+    public ResponseEntity<NicknameResponse> setNickname(
+            @PathVariable String sessionId,
+            @Valid @RequestBody NicknameRequest request
+    ) {
+        NicknameResponse response = sessionService.setNickname(sessionId, request);
         return ResponseEntity.ok(response);
     }
 }

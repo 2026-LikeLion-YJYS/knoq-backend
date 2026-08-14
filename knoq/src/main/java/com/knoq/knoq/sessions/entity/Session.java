@@ -60,6 +60,10 @@ public class Session {
     @Column(name = "account_id", length = 64)
     private String accountId;
 
+    // FR-101: 닉네임. 처음엔 없다가(null) 설정되면 채워짐
+    @Column(length = 10)
+    private String nickname;
+
     private Session(String id, String token, Long storeId, LocalDateTime expiresAt) {
         this.id = id;
         this.token = token;
@@ -96,5 +100,9 @@ public class Session {
     public void linkAccount(String accountId) {
         this.storageScope = StorageScope.ACCOUNT;
         this.accountId = accountId;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
     }
 }
