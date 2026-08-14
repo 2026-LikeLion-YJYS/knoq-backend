@@ -22,11 +22,13 @@ import com.knoq.knoq.sessions.dto.StorageScopeResponse;
 import com.knoq.knoq.sessions.entity.LifestyleTag;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.entity.StorageScope;
+import com.knoq.knoq.sessions.event.SessionFinishedEvent;
 import com.knoq.knoq.sessions.repository.SessionRepository;
 import com.knoq.knoq.store.entity.Store;
 import com.knoq.knoq.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +54,7 @@ public class SessionService {
     private final StoreRepository storeRepository;
     private final AccountRepository accountRepository;
     private final KakaoApiClient kakaoApiClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     // application.yml에 knoq.session.expiry-minutes가 없으면 기본값 60을 씀
     @Value("${knoq.session.expiry-minutes:60}")
@@ -209,6 +212,20 @@ public class SessionService {
         session.updateLifestyleTags(tags);
 
         return new LifestyleTagsResponse(session.getLifestyleTags());
+    }
+
+    @Transactional
+    public void finishShopping(String sessionId) {
+        Session session = findValidSession(sessionId);
+        StorageScope storageScope = session.getStorageScope();
+
+        if (storageScope == StorageScope.PRIVATE) {
+            sessionRepository.delete(session); // 즉시 하드 삭제
+        } else {
+            session.endSession(); // ACCOUNT는 삭제 안 하고 즉시 만료 처리만
+        }
+
+        eventPublisher.publishEvent(new SessionFinishedEvent(sessionId, storageScope));
     }
 
     // sessionId로 세션을 찾고, 없으면 404 / 만료됐으면 410을 던지는 공통 로직
