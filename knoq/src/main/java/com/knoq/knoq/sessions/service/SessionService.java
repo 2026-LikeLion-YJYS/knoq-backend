@@ -13,10 +13,13 @@ import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
 import com.knoq.knoq.sessions.dto.KakaoLoginRequest;
 import com.knoq.knoq.sessions.dto.KakaoLoginResponse;
+import com.knoq.knoq.sessions.dto.LifestyleTagsRequest;
+import com.knoq.knoq.sessions.dto.LifestyleTagsResponse;
 import com.knoq.knoq.sessions.dto.NicknameRequest;
 import com.knoq.knoq.sessions.dto.NicknameResponse;
 import com.knoq.knoq.sessions.dto.StorageScopeRequest;
 import com.knoq.knoq.sessions.dto.StorageScopeResponse;
+import com.knoq.knoq.sessions.entity.LifestyleTag;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.entity.StorageScope;
 import com.knoq.knoq.sessions.repository.SessionRepository;
@@ -191,6 +194,21 @@ public class SessionService {
         String adjective = NICKNAME_ADJECTIVES[RANDOM.nextInt(NICKNAME_ADJECTIVES.length)];
         String noun = NICKNAME_NOUNS[RANDOM.nextInt(NICKNAME_NOUNS.length)];
         return adjective + noun;
+    }
+
+    @Transactional
+    public LifestyleTagsResponse updateLifestyleTags(String sessionId, LifestyleTagsRequest request) {
+        Session session = findValidSession(sessionId);
+
+        // @Valid로도 걸러지지만, 서비스 계층에서도 한 번 더 방어(직접 호출되는 경우 대비)
+        List<LifestyleTag> tags = request.tags();
+        if (tags == null || tags.isEmpty() || tags.size() > 3) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        session.updateLifestyleTags(tags);
+
+        return new LifestyleTagsResponse(session.getLifestyleTags());
     }
 
     // sessionId로 세션을 찾고, 없으면 404 / 만료됐으면 410을 던지는 공통 로직

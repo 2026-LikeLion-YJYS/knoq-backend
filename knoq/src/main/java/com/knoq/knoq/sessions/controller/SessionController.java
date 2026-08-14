@@ -7,6 +7,8 @@ import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
 import com.knoq.knoq.sessions.dto.KakaoLoginRequest;
 import com.knoq.knoq.sessions.dto.KakaoLoginResponse;
+import com.knoq.knoq.sessions.dto.LifestyleTagsRequest;
+import com.knoq.knoq.sessions.dto.LifestyleTagsResponse;
 import com.knoq.knoq.sessions.dto.NicknameRequest;
 import com.knoq.knoq.sessions.dto.NicknameResponse;
 import com.knoq.knoq.sessions.dto.StorageScopeRequest;
@@ -89,6 +91,16 @@ public class SessionController {
             @Valid @RequestBody NicknameRequest request
     ) {
         NicknameResponse response = sessionService.setNickname(sessionId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "라이프스타일 태그 설정")
+    @PutMapping("/{sessionId}/lifestyle-tags")
+    public ResponseEntity<LifestyleTagsResponse> updateLifestyleTags(
+            @PathVariable String sessionId,
+            @Valid @RequestBody LifestyleTagsRequest request
+    ) {
+        LifestyleTagsResponse response = sessionService.updateLifestyleTags(sessionId, request);
         return ResponseEntity.ok(response);
     }
 }
