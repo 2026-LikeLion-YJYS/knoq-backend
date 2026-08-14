@@ -5,6 +5,10 @@ import com.knoq.knoq.sessions.dto.ConsentsResponse;
 import com.knoq.knoq.sessions.dto.CreateSessionRequest;
 import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
+import com.knoq.knoq.sessions.dto.KakaoLoginRequest;
+import com.knoq.knoq.sessions.dto.KakaoLoginResponse;
+import com.knoq.knoq.sessions.dto.StorageScopeRequest;
+import com.knoq.knoq.sessions.dto.StorageScopeResponse;
 import com.knoq.knoq.sessions.service.SessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,6 +57,26 @@ public class SessionController {
             @Valid @RequestBody ConsentRequest request
     ) {
         ConsentsResponse response = sessionService.agreeConsents(sessionId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "저장 범위 선택")
+    @PutMapping("/{sessionId}/storage-scope")
+    public ResponseEntity<StorageScopeResponse> selectStorageScope(
+            @PathVariable String sessionId,
+            @Valid @RequestBody StorageScopeRequest request
+    ) {
+        StorageScopeResponse response = sessionService.selectStorageScope(sessionId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "카카오 로그인")
+    @PostMapping("/{sessionId}/kakao-login")
+    public ResponseEntity<KakaoLoginResponse> kakaoLogin(
+            @PathVariable String sessionId,
+            @Valid @RequestBody KakaoLoginRequest request
+    ) {
+        KakaoLoginResponse response = sessionService.kakaoLogin(sessionId, request);
         return ResponseEntity.ok(response);
     }
 }

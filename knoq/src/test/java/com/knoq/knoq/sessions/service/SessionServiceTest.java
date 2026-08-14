@@ -2,12 +2,18 @@ package com.knoq.knoq.sessions.service;
 
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.sessions.client.KakaoApiClient;
 import com.knoq.knoq.sessions.dto.ConsentRequest;
 import com.knoq.knoq.sessions.dto.ConsentsResponse;
 import com.knoq.knoq.sessions.dto.CreateSessionRequest;
 import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
+import com.knoq.knoq.sessions.dto.KakaoLoginRequest;
+import com.knoq.knoq.sessions.dto.KakaoLoginResponse;
+import com.knoq.knoq.sessions.dto.StorageScopeRequest;
+import com.knoq.knoq.sessions.dto.StorageScopeResponse;
 import com.knoq.knoq.sessions.entity.Session;
+import com.knoq.knoq.sessions.entity.StorageScope;
 import com.knoq.knoq.sessions.repository.SessionRepository;
 import com.knoq.knoq.store.entity.Store;
 import com.knoq.knoq.store.repository.StoreRepository;
@@ -15,12 +21,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @Transactional // 테스트 끝나면 저장한 데이터는 자동으로 롤백 (실제 DB에 안 남음)
@@ -34,6 +43,10 @@ class SessionServiceTest {
 
     @Autowired
     private SessionRepository sessionRepository;
+
+    // 진짜 카카오 서버에 요청 안 보내고, 이 테스트 안에서만 가짜로 동작을 지정할 수 있는 가짜 객체로 대체
+    @MockitoBean
+    private KakaoApiClient kakaoApiClient;
 
     private Store testStore;
 
@@ -113,5 +126,55 @@ class SessionServiceTest {
 
         assertThatThrownBy(() -> sessionService.agreeConsents(created.sessionId(), request))
                 .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void PRIVATE를_선택하면_PRIVATE로_유지된다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+
+        StorageScopeResponse response = sessionService.selectStorageScope(
+                created.sessionId(), new StorageScopeRequest(StorageScope.PRIVATE)
+        );
+
+        assertThat(response.storageScope()).isEqualTo(StorageScope.PRIVATE);
+        assertThat(response.kakaoLoginRequired()).isFalse();
+    }
+
+    @Test
+    void ACCOUNT를_선택하면_카카오로그인_대기_상태가_된다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+
+        StorageScopeResponse response = sessionService.selectStorageScope(
+                created.sessionId(), new StorageScopeRequest(StorageScope.ACCOUNT)
+        );
+
+        assertThat(response.storageScope()).isEqualTo(StorageScope.PENDING_KAKAO_LOGIN);
+        assertThat(response.kakaoLoginRequired()).isTrue();
+    }
+
+    @Test
+    void 카카오_로그인에_성공하면_계정이_연결된다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        when(kakaoApiClient.getKakaoUserId("valid-token")).thenReturn(Optional.of(123456789L));
+
+        KakaoLoginResponse response = sessionService.kakaoLogin(
+                created.sessionId(), new KakaoLoginRequest("valid-token")
+        );
+
+        assertThat(response.storageScope()).isEqualTo(StorageScope.ACCOUNT);
+        assertThat(response.accountId()).startsWith("acct_");
+    }
+
+    @Test
+    void 카카오_로그인에_실패해도_에러_없이_PRIVATE로_응답한다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        when(kakaoApiClient.getKakaoUserId("invalid-token")).thenReturn(Optional.empty());
+
+        KakaoLoginResponse response = sessionService.kakaoLogin(
+                created.sessionId(), new KakaoLoginRequest("invalid-token")
+        );
+
+        assertThat(response.storageScope()).isEqualTo(StorageScope.PRIVATE);
+        assertThat(response.accountId()).isNull();
     }
 }
