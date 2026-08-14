@@ -103,4 +103,13 @@ public class SessionController {
         LifestyleTagsResponse response = sessionService.updateLifestyleTags(sessionId, request);
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "쇼핑 마치기")
+    @PostMapping("/{sessionId}/finish")
+    public ResponseEntity<Void> finishShopping(
+            @PathVariable String sessionId
+    ) {
+        sessionService.finishShopping(sessionId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -19,6 +19,7 @@ import com.knoq.knoq.sessions.dto.StorageScopeResponse;
 import com.knoq.knoq.sessions.entity.LifestyleTag;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.entity.StorageScope;
+import com.knoq.knoq.sessions.event.SessionFinishedEvent;
 import com.knoq.knoq.sessions.repository.SessionRepository;
 import com.knoq.knoq.store.entity.Store;
 import com.knoq.knoq.store.repository.StoreRepository;
@@ -26,6 +27,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
+@RecordApplicationEvents // 이 테스트 안에서 발행된 이벤트를 기록해뒀다가 나중에 확인할 수 있게 해줌
 @Transactional // 테스트 끝나면 저장한 데이터는 자동으로 롤백 (실제 DB에 안 남음)
 class SessionServiceTest {
 
@@ -240,5 +244,28 @@ class SessionServiceTest {
 
         assertThatThrownBy(() -> sessionService.updateLifestyleTags(created.sessionId(), request))
                 .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void PRIVATE_세션은_쇼핑_마치면_하드_삭제된다(ApplicationEvents events) {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+
+        sessionService.finishShopping(created.sessionId());
+
+        assertThat(sessionRepository.findById(created.sessionId())).isEmpty();
+        assertThat(events.stream(SessionFinishedEvent.class)).hasSize(1);
+    }
+
+    @Test
+    void ACCOUNT_세션은_쇼핑_마치면_삭제되지_않고_즉시_만료된다(ApplicationEvents events) {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        when(kakaoApiClient.getKakaoUserId("valid-token")).thenReturn(Optional.of(999L));
+        sessionService.kakaoLogin(created.sessionId(), new KakaoLoginRequest("valid-token")); // ACCOUNT로 전환
+
+        sessionService.finishShopping(created.sessionId());
+
+        Session found = sessionRepository.findById(created.sessionId()).orElseThrow();
+        assertThat(found.getExpiresAt()).isBeforeOrEqualTo(LocalDateTime.now());
+        assertThat(events.stream(SessionFinishedEvent.class)).hasSize(1);
     }
 }
