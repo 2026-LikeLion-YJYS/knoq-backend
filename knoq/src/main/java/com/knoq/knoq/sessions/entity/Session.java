@@ -1,10 +1,14 @@
 package com.knoq.knoq.sessions.entity;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -12,6 +16,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "session")
@@ -64,6 +70,13 @@ public class Session {
     @Column(length = 10)
     private String nickname;
 
+    // FR-102: 라이프스타일 태그. 값이 여러 개라 별도 테이블(session_lifestyle_tag)에 저장됨
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "session_lifestyle_tag", joinColumns = @JoinColumn(name = "session_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tag")
+    private List<LifestyleTag> lifestyleTags = new ArrayList<>();
+
     private Session(String id, String token, Long storeId, LocalDateTime expiresAt) {
         this.id = id;
         this.token = token;
@@ -104,5 +117,10 @@ public class Session {
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public void updateLifestyleTags(List<LifestyleTag> tags) {
+        this.lifestyleTags.clear();
+        this.lifestyleTags.addAll(tags);
     }
 }

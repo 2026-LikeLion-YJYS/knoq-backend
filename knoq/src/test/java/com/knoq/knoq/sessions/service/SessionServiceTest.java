@@ -10,10 +10,13 @@ import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
 import com.knoq.knoq.sessions.dto.KakaoLoginRequest;
 import com.knoq.knoq.sessions.dto.KakaoLoginResponse;
+import com.knoq.knoq.sessions.dto.LifestyleTagsRequest;
+import com.knoq.knoq.sessions.dto.LifestyleTagsResponse;
 import com.knoq.knoq.sessions.dto.NicknameRequest;
 import com.knoq.knoq.sessions.dto.NicknameResponse;
 import com.knoq.knoq.sessions.dto.StorageScopeRequest;
 import com.knoq.knoq.sessions.dto.StorageScopeResponse;
+import com.knoq.knoq.sessions.entity.LifestyleTag;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.entity.StorageScope;
 import com.knoq.knoq.sessions.repository.SessionRepository;
@@ -27,6 +30,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -205,6 +209,36 @@ class SessionServiceTest {
         CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
 
         assertThatThrownBy(() -> sessionService.setNickname(created.sessionId(), new NicknameRequest("병신라떼")))
+                .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void 라이프스타일_태그를_1개에서_3개_고르면_저장된다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        LifestyleTagsRequest request = new LifestyleTagsRequest(List.of(LifestyleTag.MINIMAL, LifestyleTag.CASUAL));
+
+        LifestyleTagsResponse response = sessionService.updateLifestyleTags(created.sessionId(), request);
+
+        assertThat(response.tags()).containsExactly(LifestyleTag.MINIMAL, LifestyleTag.CASUAL);
+    }
+
+    @Test
+    void 라이프스타일_태그를_하나도_안_고르면_예외를_던진다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        LifestyleTagsRequest request = new LifestyleTagsRequest(List.of());
+
+        assertThatThrownBy(() -> sessionService.updateLifestyleTags(created.sessionId(), request))
+                .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void 라이프스타일_태그를_4개_이상_고르면_예외를_던진다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        LifestyleTagsRequest request = new LifestyleTagsRequest(List.of(
+                LifestyleTag.MINIMAL, LifestyleTag.CASUAL, LifestyleTag.STREET, LifestyleTag.FORMAL
+        ));
+
+        assertThatThrownBy(() -> sessionService.updateLifestyleTags(created.sessionId(), request))
                 .isInstanceOf(ApiException.class);
     }
 }
