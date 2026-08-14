@@ -2,6 +2,8 @@ package com.knoq.knoq.sessions.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -50,6 +52,14 @@ public class Session {
     @Column(name = "consented_at")
     private LocalDateTime consentedAt;
 
+    // FR-100: 저장 범위. 기본값 PRIVATE(계정 연결 안 함)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "storage_scope", nullable = false, length = 20)
+    private StorageScope storageScope = StorageScope.PRIVATE;
+
+    @Column(name = "account_id", length = 64)
+    private String accountId;
+
     private Session(String id, String token, Long storeId, LocalDateTime expiresAt) {
         this.id = id;
         this.token = token;
@@ -69,5 +79,22 @@ public class Session {
         this.over14 = over14;
         this.marketingOptIn = marketingOptIn;
         this.consentedAt = consentedAt;
+    }
+
+    // "ACCOUNT로 저장할래" 선택 = 아직 카카오 로그인은 안 했으니 중간 상태로
+    public void requestAccountStorage() {
+        this.storageScope = StorageScope.PENDING_KAKAO_LOGIN;
+    }
+
+    // "PRIVATE로 저장할래" 선택 (또는 카카오 로그인 실패 시 되돌아가는 상태)
+    public void usePrivateStorage() {
+        this.storageScope = StorageScope.PRIVATE;
+        this.accountId = null;
+    }
+
+    // 카카오 로그인 성공 → 실제 계정 연결 완료
+    public void linkAccount(String accountId) {
+        this.storageScope = StorageScope.ACCOUNT;
+        this.accountId = accountId;
     }
 }

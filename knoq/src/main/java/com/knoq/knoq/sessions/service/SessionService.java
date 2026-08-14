@@ -1,14 +1,22 @@
 package com.knoq.knoq.sessions.service;
 
+import com.knoq.knoq.account.entity.Account;
+import com.knoq.knoq.account.repository.AccountRepository;
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.sessions.client.KakaoApiClient;
 import com.knoq.knoq.sessions.dto.ConsentRequest;
 import com.knoq.knoq.sessions.dto.ConsentType;
 import com.knoq.knoq.sessions.dto.ConsentsResponse;
 import com.knoq.knoq.sessions.dto.CreateSessionRequest;
 import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
+import com.knoq.knoq.sessions.dto.KakaoLoginRequest;
+import com.knoq.knoq.sessions.dto.KakaoLoginResponse;
+import com.knoq.knoq.sessions.dto.StorageScopeRequest;
+import com.knoq.knoq.sessions.dto.StorageScopeResponse;
 import com.knoq.knoq.sessions.entity.Session;
+import com.knoq.knoq.sessions.entity.StorageScope;
 import com.knoq.knoq.sessions.repository.SessionRepository;
 import com.knoq.knoq.store.entity.Store;
 import com.knoq.knoq.store.repository.StoreRepository;
@@ -21,6 +29,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +40,8 @@ public class SessionService {
 
     private final SessionRepository sessionRepository;
     private final StoreRepository storeRepository;
+    private final AccountRepository accountRepository;
+    private final KakaoApiClient kakaoApiClient;
 
     // application.yml에 knoq.session.expiry-minutes가 없으면 기본값 60을 씀
     @Value("${knoq.session.expiry-minutes:60}")
@@ -106,6 +117,47 @@ public class SessionService {
         ));
     }
 
+    @Transactional
+    public StorageScopeResponse selectStorageScope(String sessionId, StorageScopeRequest request) {
+        Session session = findValidSession(sessionId);
+
+        StorageScope requested = request.storageScope();
+        // 클라이언트가 PENDING_KAKAO_LOGIN을 직접 보내는 건 허용 안 함 (시스템이 계산하는 상태값)
+        if (requested == StorageScope.PENDING_KAKAO_LOGIN) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        if (requested == StorageScope.ACCOUNT) {
+            // 아직 카카오 로그인 전이니 바로 ACCOUNT로 못 가고, "로그인 대기" 상태로만 바꿈
+            session.requestAccountStorage();
+            return new StorageScopeResponse(session.getStorageScope(), true);
+        }
+
+        session.usePrivateStorage();
+        return new StorageScopeResponse(session.getStorageScope(), false);
+    }
+
+    @Transactional
+    public KakaoLoginResponse kakaoLogin(String sessionId, KakaoLoginRequest request) {
+        Session session = findValidSession(sessionId);
+
+        Optional<Long> kakaoUserId = kakaoApiClient.getKakaoUserId(request.kakaoAccessToken());
+
+        if (kakaoUserId.isEmpty()) {
+            // 카카오 인증 실패해도 에러로 막지 않고, PRIVATE로 되돌린 뒤 200으로 응답
+            session.usePrivateStorage();
+            return new KakaoLoginResponse(StorageScope.PRIVATE, null);
+        }
+
+        // 이 카카오 계정으로 이미 만들어진 Account가 있으면 재사용, 없으면 새로 생성
+        Account account = accountRepository.findByKakaoUserId(kakaoUserId.get())
+                .orElseGet(() -> accountRepository.save(Account.of(generateAccountId(), kakaoUserId.get())));
+
+        session.linkAccount(account.getId());
+
+        return new KakaoLoginResponse(session.getStorageScope(), account.getId());
+    }
+
     // sessionId로 세션을 찾고, 없으면 404 / 만료됐으면 410을 던지는 공통 로직
     // (getSession, agreeConsents 둘 다 "유효한 세션인지 확인"이 먼저 필요해서 메서드로 뺌)
     private Session findValidSession(String sessionId) {
@@ -131,5 +183,13 @@ public class SessionService {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String generateAccountId() {
+        StringBuilder sb = new StringBuilder("acct_");
+        for (int i = 0; i < 12; i++) {
+            sb.append(ID_CHARS.charAt(RANDOM.nextInt(ID_CHARS.length())));
+        }
+        return sb.toString();
     }
 }
