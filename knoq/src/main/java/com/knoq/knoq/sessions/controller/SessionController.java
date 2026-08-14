@@ -112,4 +112,13 @@ public class SessionController {
         sessionService.finishShopping(sessionId);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "로그아웃")
+    @PostMapping("/{sessionId}/logout")
+    public ResponseEntity<Void> logout(
+            @PathVariable String sessionId
+    ) {
+        sessionService.logout(sessionId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -228,6 +228,14 @@ public class SessionService {
         eventPublisher.publishEvent(new SessionFinishedEvent(sessionId, storageScope));
     }
 
+    @Transactional
+    public void logout(String sessionId) {
+        Session session = findValidSession(sessionId);
+        // "카카오 로그인"의 반대 동작 — 이미 만들어둔 usePrivateStorage()를 그대로 재사용
+        // (storageScope를 PRIVATE로 되돌리고 accountId도 비움)
+        session.usePrivateStorage();
+    }
+
     // sessionId로 세션을 찾고, 없으면 404 / 만료됐으면 410을 던지는 공통 로직
     // (getSession, agreeConsents 둘 다 "유효한 세션인지 확인"이 먼저 필요해서 메서드로 뺌)
     private Session findValidSession(String sessionId) {
