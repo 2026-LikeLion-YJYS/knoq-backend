@@ -1,5 +1,7 @@
 package com.knoq.knoq.sessions.controller;
 
+import com.knoq.knoq.sessions.dto.ConsentRequest;
+import com.knoq.knoq.sessions.dto.ConsentsResponse;
 import com.knoq.knoq.sessions.dto.CreateSessionRequest;
 import com.knoq.knoq.sessions.dto.CreateSessionResponse;
 import com.knoq.knoq.sessions.dto.GetSessionResponse;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +43,16 @@ public class SessionController {
             @PathVariable String sessionId
     ) {
         GetSessionResponse response = sessionService.getSession(sessionId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "약관 동의")
+    @PutMapping("/{sessionId}/consents")
+    public ResponseEntity<ConsentsResponse> agreeConsents(
+            @PathVariable String sessionId,
+            @Valid @RequestBody ConsentRequest request
+    ) {
+        ConsentsResponse response = sessionService.agreeConsents(sessionId, request);
         return ResponseEntity.ok(response);
     }
 }
