@@ -44,12 +44,10 @@ class ProductServiceTest {
         assertThat(response.productId()).isEqualTo("prod_test1");
         assertThat(response.name()).isEqualTo("테스트 니트");
         assertThat(response.material()).isEqualTo("울 100%");
-        assertThat(response.features()).isEqualTo("가볍고 신축성이 좋습니다");
         assertThat(response.price()).isEqualTo(89000L);
         assertThat(response.size()).containsExactly("S", "M", "L");
         assertThat(response.color()).containsExactly("블랙", "베이지");
-        assertThat(response.descriptions().brandOfficial()).isEqualTo("브랜드 공식 설명입니다.");
-        assertThat(response.descriptions().aiGenerated()).isNull();
+        assertThat(response.aiGenerated()).isNull();
     }
 
     @Test
@@ -68,8 +66,6 @@ class ProductServiceTest {
 
         // then
         assertThat(response.material()).isEqualTo("정보 없음");
-        assertThat(response.features()).isEqualTo("정보 없음");
-        assertThat(response.descriptions().brandOfficial()).isEqualTo("정보 없음");
     }
 
     @Test

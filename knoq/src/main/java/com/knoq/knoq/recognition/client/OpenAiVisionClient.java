@@ -74,7 +74,9 @@ public class OpenAiVisionClient {
 
         for (Product product : referenceProducts) {
             content.add(textPart("productId: " + product.getId()));
-            content.add(imagePart(product.getReferenceImageBase64()));
+            for (String referenceImage : product.getReferenceImages()) {
+                content.add(imagePart(referenceImage));
+            }
         }
 
         content.add(textPart("다음은 고객이 방금 촬영한 사진입니다. 위 참고 사진들과 비교해서 가장 일치하는 제품을 찾아주세요."));

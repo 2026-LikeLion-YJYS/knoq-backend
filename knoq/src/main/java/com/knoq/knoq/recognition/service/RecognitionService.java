@@ -88,7 +88,7 @@ public class RecognitionService {
     // GPT 비전으로 후보 결정. 실패하거나 기준 사진이 등록된 제품이 하나도 없으면 null 반환 → 호출부에서 mock 폴백
     private MatchResult tryVisionMatch(List<Product> products, MultipartFile image) {
         List<Product> withReferenceImage = products.stream()
-                .filter(p -> p.getReferenceImageBase64() != null && !p.getReferenceImageBase64().isBlank())
+                .filter(p -> p.getReferenceImages() != null && !p.getReferenceImages().isEmpty())
                 .toList();
         if (withReferenceImage.isEmpty()) {
             return null;
