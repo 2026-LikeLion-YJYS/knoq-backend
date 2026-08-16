@@ -23,7 +23,10 @@ public class ProductService {
                 .orElseThrow(() -> new ApiException(ErrorCode.PRODUCT_NOT_FOUND));
 
         return new ProductDetailResponse(
+                product.getId(),
+                product.getName(),
                 orNoInfo(product.getMaterial()),
+                orNoInfo(product.getFeatures()),
                 product.getPrice(),
                 product.getSizes(),
                 product.getColors(),

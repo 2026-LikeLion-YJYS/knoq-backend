@@ -31,8 +31,8 @@ class ProductServiceTest {
     void getProductDetail_success() {
         // given
         Product product = Product.of(
-                "prod_test1", "PD-9999", "테스트 니트", "울 100%", 89000L,
-                List.of("S", "M", "L"), List.of("블랙", "베이지"),
+                "prod_test1", "PD-9999", "테스트 니트", "울 100%", "가볍고 신축성이 좋습니다", 89000L,
+                List.of("S", "M", "L"), List.of("블랙", "베이지"), "https://example.com/thumb.jpg",
                 "브랜드 공식 설명입니다.", null
         );
         productRepository.save(product);
@@ -41,7 +41,10 @@ class ProductServiceTest {
         ProductDetailResponse response = productService.getProductDetail("prod_test1");
 
         // then
+        assertThat(response.productId()).isEqualTo("prod_test1");
+        assertThat(response.name()).isEqualTo("테스트 니트");
         assertThat(response.material()).isEqualTo("울 100%");
+        assertThat(response.features()).isEqualTo("가볍고 신축성이 좋습니다");
         assertThat(response.price()).isEqualTo(89000L);
         assertThat(response.size()).containsExactly("S", "M", "L");
         assertThat(response.color()).containsExactly("블랙", "베이지");
@@ -54,8 +57,8 @@ class ProductServiceTest {
     void getProductDetail_missingInfo_returnsDefaultText() {
         // given
         Product product = Product.of(
-                "prod_test2", "PD-9998", "테스트 티셔츠", null, 29000L,
-                List.of("FREE"), List.of("화이트"),
+                "prod_test2", "PD-9998", "테스트 티셔츠", null, null, 29000L,
+                List.of("FREE"), List.of("화이트"), null,
                 null, null
         );
         productRepository.save(product);
@@ -65,6 +68,7 @@ class ProductServiceTest {
 
         // then
         assertThat(response.material()).isEqualTo("정보 없음");
+        assertThat(response.features()).isEqualTo("정보 없음");
         assertThat(response.descriptions().brandOfficial()).isEqualTo("정보 없음");
     }
 

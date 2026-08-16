@@ -4,7 +4,6 @@ import org.springframework.http.HttpStatus;
 
 /**
  * 공통 규칙 문서의 에러 코드 표. 앞으로 기능 만들 때마다 필요한 코드를 여기에 추가한다.
- * FR-000, FR-401(세션 조회)에 필요한 코드까지 포함.
  */
 public enum ErrorCode {
 

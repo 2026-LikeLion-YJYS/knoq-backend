@@ -33,7 +33,15 @@ public class Product {
     @Column(length = 200)
     private String material;
 
+    // FR-201 "특징" 항목. material/descriptions와 별도 텍스트 필드
+    @Column(length = 500)
+    private String features;
+
     private Long price;
+
+    // FR-200 후보 목록 카드에 쓰는 썸네일
+    @Column(name = "thumbnail_url", length = 500)
+    private String thumbnailUrl;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "product_size", joinColumns = @JoinColumn(name = "product_id"))
@@ -51,24 +59,26 @@ public class Product {
     @Column(name = "ai_generated_description", columnDefinition = "TEXT")
     private String aiGeneratedDescription;
 
-    private Product(String id, String productCode, String name, String material, Long price,
-                    List<String> sizes, List<String> colors,
+    private Product(String id, String productCode, String name, String material, String features, Long price,
+                    List<String> sizes, List<String> colors, String thumbnailUrl,
                     String brandOfficialDescription, String aiGeneratedDescription) {
         this.id = id;
         this.productCode = productCode;
         this.name = name;
         this.material = material;
+        this.features = features;
         this.price = price;
         this.sizes = sizes;
         this.colors = colors;
+        this.thumbnailUrl = thumbnailUrl;
         this.brandOfficialDescription = brandOfficialDescription;
         this.aiGeneratedDescription = aiGeneratedDescription;
     }
 
-    public static Product of(String id, String productCode, String name, String material, Long price,
-                             List<String> sizes, List<String> colors,
+    public static Product of(String id, String productCode, String name, String material, String features, Long price,
+                             List<String> sizes, List<String> colors, String thumbnailUrl,
                              String brandOfficialDescription, String aiGeneratedDescription) {
-        return new Product(id, productCode, name, material, price, sizes, colors,
+        return new Product(id, productCode, name, material, features, price, sizes, colors, thumbnailUrl,
                 brandOfficialDescription, aiGeneratedDescription);
     }
 }
