@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -59,6 +60,17 @@ public class Product {
     @Column(name = "ai_generated_description", columnDefinition = "TEXT")
     private String aiGeneratedDescription;
 
+    // FR-200 임베딩 유사도 매칭용 기준 벡터. 사진 등록 전엔 비어있음 (더 이상 안 씀 — OpenAI 비전 방식으로 대체)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "product_embedding", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "value")
+    private List<Double> embedding = new ArrayList<>();
+
+    // FR-200 인식용 기준 사진 원본(base64). GPT 비전 호출 시 이걸 그대로 보냄
+    @Column(name = "reference_image_base64", columnDefinition = "LONGTEXT")
+    private String referenceImageBase64;
+
     private Product(String id, String productCode, String name, String material, String features, Long price,
                     List<String> sizes, List<String> colors, String thumbnailUrl,
                     String brandOfficialDescription, String aiGeneratedDescription) {
@@ -80,5 +92,15 @@ public class Product {
                              String brandOfficialDescription, String aiGeneratedDescription) {
         return new Product(id, productCode, name, material, features, price, sizes, colors, thumbnailUrl,
                 brandOfficialDescription, aiGeneratedDescription);
+    }
+
+    // 인식용 기준 사진(base64) 등록/재등록
+    public void updateReferenceImage(String referenceImageBase64) {
+        this.referenceImageBase64 = referenceImageBase64;
+    }
+
+    // AI 요약(스타일/기능/수납/잠금) 생성 결과를 저장
+    public void updateAiGeneratedDescription(String aiGeneratedDescription) {
+        this.aiGeneratedDescription = aiGeneratedDescription;
     }
 }
