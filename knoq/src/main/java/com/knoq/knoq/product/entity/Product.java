@@ -100,6 +100,9 @@ public class Product {
                 brandOfficialDescription, aiGeneratedDescription);
     }
 
+    public void updateCategory(String category) {
+        this.category = category;
+    }
 
     // 사진 등록 시 기준 벡터를 갱신(최초 등록/재등록 둘 다 이걸로 처리) — 더 이상 안 씀
     public void updateEmbedding(List<Double> embedding) {
