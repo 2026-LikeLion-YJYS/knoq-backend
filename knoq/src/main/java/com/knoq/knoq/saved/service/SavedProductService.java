@@ -1,5 +1,7 @@
 package com.knoq.knoq.saved.service;
 
+import com.knoq.knoq.global.exception.ApiException;
+import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.saved.entity.SavedProduct;
 import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.saved.entity.SavedProductSource;
@@ -53,9 +55,7 @@ public class SavedProductService {
                 .orElseGet(() -> {
 
                     if (repository.countBySessionId(sessionId) >= MAX_SAVED) {
-                        throw new IllegalStateException(
-                                "SAVED_PRODUCT_LIMIT_EXCEEDED"
-                        );
+                        throw new ApiException(ErrorCode.SAVED_PRODUCT_LIMIT_EXCEEDED);
                     }
 
                     SavedProduct savedProduct =
@@ -88,9 +88,7 @@ public class SavedProductService {
                                 productId
                         )
                         .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "SAVED_PRODUCT_NOT_FOUND"
-                                )
+                                new ApiException(ErrorCode.SAVED_PRODUCT_NOT_FOUND)
                         );
 
         repository.delete(savedProduct);

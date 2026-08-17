@@ -61,14 +61,4 @@ public class SavedProductController {
         savedProductService.delete(sessionId, productId);
         return ResponseEntity.noContent().build();
     }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Void> handleNotFound(IllegalArgumentException e) {
-        return ResponseEntity.notFound().build();
-    }
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<Void> handleConflict(IllegalStateException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-    }
 }
