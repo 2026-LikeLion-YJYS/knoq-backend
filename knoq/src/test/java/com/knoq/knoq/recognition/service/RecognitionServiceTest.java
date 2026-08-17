@@ -9,6 +9,8 @@ import com.knoq.knoq.recognition.dto.ConfirmRecognitionResponse;
 import com.knoq.knoq.recognition.dto.ProductLookupRequest;
 import com.knoq.knoq.recognition.dto.ProductLookupResponse;
 import com.knoq.knoq.recognition.dto.RecognitionResponse;
+import com.knoq.knoq.saved.entity.SavedProduct;
+import com.knoq.knoq.saved.service.SavedProductService;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.repository.SessionRepository;
 import com.knoq.knoq.store.entity.Store;
@@ -51,6 +53,10 @@ class RecognitionServiceTest {
     @MockitoBean
     private OpenAiVisionClient openAiVisionClient;
 
+    // 진짜 SavedProductService(B 코드) 안 타게 mock 처리
+    @MockitoBean
+    private SavedProductService savedProductService;
+
     private String sessionId;
 
     @BeforeEach
@@ -62,12 +68,12 @@ class RecognitionServiceTest {
         sessionId = session.getId();
     }
 
-    // referenceImage가 null/blank면 "기준 사진 없음" 취급, 값이 있으면 아무 문자열이나 넣어도 됨(GPT 호출 자체를 mock하니까)
-    private Product saveProduct(String id, String code, String name, String referenceImageBase64) {
+    // referenceImages가 비어있으면 "기준 사진 없음" 취급, 값이 있으면 아무 문자열이나 넣어도 됨(GPT 호출 자체를 mock하니까)
+    private Product saveProduct(String id, String code, String name, List<String> referenceImages) {
         Product product = Product.of(id, code, name, "울 100%", "특징", 100000L,
                 List.of("FREE"), List.of("블랙"), "https://example.com/" + id + ".jpg", "브랜드 설명", null);
-        if (referenceImageBase64 != null) {
-            product.updateReferenceImage(referenceImageBase64);
+        if (referenceImages != null) {
+            referenceImages.forEach(product::addReferenceImage);
         }
         return productRepository.save(product);
     }
@@ -78,7 +84,7 @@ class RecognitionServiceTest {
 
     @Test
     void 기준_사진이_없으면_mock_매칭으로_폴백한다() {
-        saveProduct("prod_a", "PD-A", "제품A", null); // 기준 사진 없음
+        saveProduct("prod_a", "PD-A", "제품A", List.of()); // 기준 사진 없음
 
         RecognitionResponse response = recognitionService.recognize(sessionId, fakeImage());
 
@@ -90,9 +96,9 @@ class RecognitionServiceTest {
 
     @Test
     void GPT가_confidence_가장_높은_제품을_최우선_후보로_반환하면_그대로_1순위가_된다() {
-        saveProduct("prod_close", "PD-1", "가까운 제품", "fake-base64-1");
-        saveProduct("prod_far", "PD-2", "먼 제품", "fake-base64-2");
-        saveProduct("prod_far2", "PD-3", "먼 제품2", "fake-base64-3");
+        saveProduct("prod_close", "PD-1", "가까운 제품", List.of("fake-base64-1"));
+        saveProduct("prod_far", "PD-2", "먼 제품", List.of("fake-base64-2"));
+        saveProduct("prod_far2", "PD-3", "먼 제품2", List.of("fake-base64-3"));
         when(openAiVisionClient.recognize(any(), anyList())).thenReturn(List.of(
                 new OpenAiVisionClient.VisionMatch("prod_close", 0.92),
                 new OpenAiVisionClient.VisionMatch("prod_far", 0.3)
@@ -105,7 +111,7 @@ class RecognitionServiceTest {
 
     @Test
     void OpenAI_API가_실패하면_mock으로_폴백한다() {
-        saveProduct("prod_a", "PD-A", "제품A", "fake-base64");
+        saveProduct("prod_a", "PD-A", "제품A", List.of("fake-base64"));
         when(openAiVisionClient.recognize(any(), anyList())).thenThrow(new ApiException(
                 com.knoq.knoq.global.exception.ErrorCode.VISION_RECOGNITION_FAILED));
 
@@ -116,20 +122,25 @@ class RecognitionServiceTest {
 
     @Test
     void 후보_안에_있는_제품으로_확정하면_성공한다() {
-        saveProduct("prod_a", "PD-A", "제품A", null);
+        saveProduct("prod_a", "PD-A", "제품A", List.of());
         RecognitionResponse recognized = recognitionService.recognize(sessionId, fakeImage());
         String productId = recognized.candidates().get(0).productId();
+
+        SavedProduct mockSaved = org.mockito.Mockito.mock(SavedProduct.class);
+        when(mockSaved.getId()).thenReturn(1L); // SavedProduct의 PK가 Long이라 그대로 맞춤
+        when(savedProductService.saveFromCamera(sessionId, productId)).thenReturn(mockSaved);
 
         ConfirmRecognitionResponse response = recognitionService.confirm(
                 sessionId, recognized.recognitionId(), new ConfirmRecognitionRequest(productId, true));
 
         assertThat(response.productId()).isEqualTo(productId);
         assertThat(response.confirmed()).isTrue();
+        assertThat(response.savedProductId()).isEqualTo("1");
     }
 
     @Test
     void 후보에_없는_제품으로_확정하려하면_예외를_던진다() {
-        saveProduct("prod_a", "PD-A", "제품A", null);
+        saveProduct("prod_a", "PD-A", "제품A", List.of());
         RecognitionResponse recognized = recognitionService.recognize(sessionId, fakeImage());
 
         assertThatThrownBy(() -> recognitionService.confirm(
@@ -139,7 +150,7 @@ class RecognitionServiceTest {
 
     @Test
     void 다시_촬영할게요를_선택하면_폐기되고_null을_반환한다() {
-        saveProduct("prod_a", "PD-A", "제품A", null);
+        saveProduct("prod_a", "PD-A", "제품A", List.of());
         RecognitionResponse recognized = recognitionService.recognize(sessionId, fakeImage());
 
         ConfirmRecognitionResponse response = recognitionService.confirm(
@@ -150,7 +161,7 @@ class RecognitionServiceTest {
 
     @Test
     void 제품코드로_조회하면_제품을_찾는다() {
-        saveProduct("prod_a", "PD-0091", "미니멀 크루넥 니트", null);
+        saveProduct("prod_a", "PD-0091", "미니멀 크루넥 니트", List.of());
 
         ProductLookupResponse response = recognitionService.lookupProduct(
                 sessionId, new ProductLookupRequest("PD-0091"));

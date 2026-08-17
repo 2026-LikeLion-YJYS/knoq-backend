@@ -16,9 +16,13 @@ import com.knoq.knoq.recognition.entity.Recognition;
 import com.knoq.knoq.recognition.entity.RecognitionCandidate;
 import com.knoq.knoq.recognition.entity.RecognitionStatus;
 import com.knoq.knoq.recognition.repository.RecognitionRepository;
+import com.knoq.knoq.saved.entity.SavedProduct;
+import com.knoq.knoq.saved.service.SavedProductService;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +42,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RecognitionService {
 
+    private static final Logger log = LoggerFactory.getLogger(RecognitionService.class);
+
     // 80% 이상이면 단일 확정, 미만이면 후보 목록 (명세서 2.1 기준)
     private static final double CONFIDENCE_THRESHOLD = 0.8;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -50,6 +56,7 @@ public class RecognitionService {
     private final ProductRepository productRepository;
     private final SessionRepository sessionRepository;
     private final OpenAiVisionClient openAiVisionClient;
+    private final SavedProductService savedProductService;
 
     @Transactional
     public RecognitionResponse recognize(String sessionId, MultipartFile image) {
@@ -88,7 +95,7 @@ public class RecognitionService {
     // GPT 비전으로 후보 결정. 실패하거나 기준 사진이 등록된 제품이 하나도 없으면 null 반환 → 호출부에서 mock 폴백
     private MatchResult tryVisionMatch(List<Product> products, MultipartFile image) {
         List<Product> withReferenceImage = products.stream()
-                .filter(p -> p.getReferenceImageBase64() != null && !p.getReferenceImageBase64().isBlank())
+                .filter(p -> p.getReferenceImages() != null && !p.getReferenceImages().isEmpty())
                 .toList();
         if (withReferenceImage.isEmpty()) {
             return null;
@@ -105,11 +112,15 @@ public class RecognitionService {
         try {
             matches = openAiVisionClient.recognize(capturedBase64, withReferenceImage);
         } catch (ApiException e) {
+            log.warn("GPT 비전 호출 자체가 실패해서 mock으로 폴백함");
             return null;
         }
         if (matches == null || matches.isEmpty()) {
+            log.warn("GPT가 매치를 하나도 안 돌려줘서 mock으로 폴백함");
             return null;
         }
+        log.info("GPT가 준 원본 매치 목록: {} (참고 사진 등록된 제품 ID: {})", matches,
+                withReferenceImage.stream().map(Product::getId).toList());
 
         Map<String, Product> productById = withReferenceImage.stream()
                 .collect(java.util.stream.Collectors.toMap(Product::getId, p -> p));
@@ -120,6 +131,7 @@ public class RecognitionService {
                 .sorted(Comparator.comparingDouble(OpenAiVisionClient.VisionMatch::confidence).reversed())
                 .toList();
         if (validMatches.isEmpty()) {
+            log.warn("GPT가 준 매치가 전부 등록 안 된(할루시네이션) productId라서 mock으로 폴백함: {}", matches);
             return null;
         }
 
@@ -183,7 +195,11 @@ public class RecognitionService {
         }
 
         recognition.confirm();
-        return new ConfirmRecognitionResponse(request.productId(), true);
+
+        // confirm과 저장을 같은 트랜잭션 안에서 처리 — 저장이 실패하면 confirm도 같이 롤백됨
+        SavedProduct savedProduct = savedProductService.saveFromCamera(sessionId, request.productId());
+        // savedProduct.getId()가 Long이라 String으로 변환 (다른 ID들처럼 응답은 문자열로 통일)
+        return new ConfirmRecognitionResponse(request.productId(), true, String.valueOf(savedProduct.getId()));
     }
 
     @Transactional(readOnly = true)
