@@ -70,9 +70,12 @@ public class Product {
     @Column(name = "value")
     private List<Double> embedding = new ArrayList<>();
 
-    // FR-200 인식용 기준 사진 원본(base64). GPT 비전 호출 시 이걸 그대로 보냄
-    @Column(name = "reference_image_base64", columnDefinition = "LONGTEXT")
-    private String referenceImageBase64;
+    // FR-200 인식용 기준 사진들(base64). 정면/측면/윗면처럼 여러 장 누적 등록 가능 — GPT 비전 호출 시 등록된 사진 전부를 보냄
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "product_reference_image", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "image_base64", columnDefinition = "LONGTEXT")
+    private List<String> referenceImages = new ArrayList<>();
 
     private Product(String id, String productCode, String name, String material, String features, Long price,
                     List<String> sizes, List<String> colors, String thumbnailUrl,
@@ -97,13 +100,20 @@ public class Product {
                 brandOfficialDescription, aiGeneratedDescription);
     }
 
-    public void updateCategory(String category) {
-        this.category = category;
+
+    // 사진 등록 시 기준 벡터를 갱신(최초 등록/재등록 둘 다 이걸로 처리) — 더 이상 안 씀
+    public void updateEmbedding(List<Double> embedding) {
+        this.embedding = embedding;
     }
 
-    // 인식용 기준 사진(base64) 등록/재등록
-    public void updateReferenceImage(String referenceImageBase64) {
-        this.referenceImageBase64 = referenceImageBase64;
+    // 인식용 기준 사진 추가 등록 (정면/측면/윗면 등 호출할 때마다 누적됨)
+    public void addReferenceImage(String imageBase64) {
+        this.referenceImages.add(imageBase64);
+    }
+
+    // 기준 사진 전체 초기화 (다시 처음부터 등록하고 싶을 때)
+    public void clearReferenceImages() {
+        this.referenceImages.clear();
     }
 
     // AI 요약(스타일/기능/수납/잠금) 생성 결과를 저장
