@@ -39,12 +39,16 @@ public class OpenAiVisionClient {
     public List<VisionMatch> recognize(String capturedImageBase64, List<Product> referenceProducts) {
         try {
             ObjectNode requestBody = buildRequestBody(capturedImageBase64, referenceProducts);
+            // Spring 쪽 기본 JSON 컨버터(Jackson 3, tools.jackson)가 우리가 만든 구버전 Jackson(com.fasterxml)
+            // ObjectNode를 제대로 직렬화 못 해서 빈 바디가 나가는 문제가 있었음.
+            // 그래서 우리 ObjectMapper로 직접 문자열로 변환해서 보내는 걸로 우회함 (버전 충돌 회피)
+            String requestBodyJson = objectMapper.writeValueAsString(requestBody);
 
             String rawResponse = restClient.post()
                     .uri(API_URL)
                     .header("Authorization", "Bearer " + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
+                    .body(requestBodyJson)
                     .retrieve()
                     .body(String.class);
 
@@ -104,6 +108,9 @@ public class OpenAiVisionClient {
         node.put("type", "image_url");
         ObjectNode imageUrl = objectMapper.createObjectNode();
         imageUrl.put("url", "data:image/jpeg;base64," + base64);
+        // low detail = 512x512로 축소해서 봄, 이미지당 고정 ~85토큰만 씀 (원본 그대로 보내면 타일링 때문에
+        // 이미지 한 장에 수천 토큰까지 나가서 TPM 레이트리밋에 바로 걸림 — 실제로 요청 1번에 48만 토큰 나갔었음)
+        imageUrl.put("detail", "low");
         node.set("image_url", imageUrl);
         return node;
     }
