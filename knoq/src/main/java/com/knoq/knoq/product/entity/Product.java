@@ -31,6 +31,9 @@ public class Product {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(length = 100)
+    private String category;
+
     @Column(length = 200)
     private String material;
 
@@ -92,6 +95,10 @@ public class Product {
                              String brandOfficialDescription, String aiGeneratedDescription) {
         return new Product(id, productCode, name, material, features, price, sizes, colors, thumbnailUrl,
                 brandOfficialDescription, aiGeneratedDescription);
+    }
+
+    public void updateCategory(String category) {
+        this.category = category;
     }
 
     // 인식용 기준 사진(base64) 등록/재등록

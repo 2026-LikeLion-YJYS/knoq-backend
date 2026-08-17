@@ -17,7 +17,7 @@ public class ProductRepositoryAttributeProvider implements ProductAttributeProvi
         return productRepository.findAllById(productIds).stream()
                 .map(product -> new ProductAttributes(
                         product.getId(),
-                        null,
+                        product.getCategory(),
                         product.getMaterial(),
                         product.getColors(),
                         product.getSizes()

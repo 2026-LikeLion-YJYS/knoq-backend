@@ -6,6 +6,7 @@ import com.knoq.knoq.needs.dto.response.NeedsAnalysisResponse;
 import com.knoq.knoq.needs.dto.response.NeedsAnalysisResultResponse;
 import com.knoq.knoq.needs.repository.NeedsAnalysisRepository;
 import com.knoq.knoq.needs.service.NeedsAnalysisService;
+import com.knoq.knoq.needs.service.NeedsCommentGenerator;
 import com.knoq.knoq.product.entity.Product;
 import com.knoq.knoq.product.repository.ProductRepository;
 import com.knoq.knoq.saved.entity.SavedProduct;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -25,6 +27,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @Transactional
@@ -44,6 +48,9 @@ class NeedsAnalysisServiceTest {
 
     @Autowired
     private NeedsAnalysisRepository needsAnalysisRepository;
+
+    @MockitoBean
+    private NeedsCommentGenerator needsCommentGenerator;
 
     private Session session;
 
@@ -141,7 +148,7 @@ class NeedsAnalysisServiceTest {
         NeedsAnalysisResultResponse result =
                 needsAnalysisService.analyze(session.getId());
 
-        assertThat(result.getProductCategory()).isNull();
+        assertThat(result.getProductCategory()).isEqualTo("상의");
         assertThat(result.getPreferredMaterial()).isEqualTo("울");
         assertThat(result.getPreferredColor()).isEqualTo("블랙");
         assertThat(result.getPreferredSize()).isEqualTo("M");
@@ -154,6 +161,8 @@ class NeedsAnalysisServiceTest {
         assertThat(response.isCanAnalyze()).isTrue();
         assertThat(response.getSavedCount()).isEqualTo(2);
         assertThat(response.getAnalysis()).isNotNull();
+        assertThat(response.getAnalysis().getProductCategory())
+                .isEqualTo("상의");
         assertThat(response.getAnalysis().getPreferredMaterial())
                 .isEqualTo("울");
         assertThat(response.getAnalysis().getPreferredColor())
@@ -164,6 +173,73 @@ class NeedsAnalysisServiceTest {
         assertThat(
                 needsAnalysisRepository.findBySessionId(session.getId())
         ).isPresent();
+    }
+
+    @Test
+    @DisplayName("코멘트 생성기가 문장을 반환하면 그 문장을 그대로 사용한다")
+    void analyze_uses_generated_comment_when_available() {
+        Product productA = createProduct(
+                "prod_comment_1",
+                "PD-COMMENT-1",
+                "울 니트 A",
+                "울",
+                List.of("M"),
+                List.of("블랙")
+        );
+
+        Product productB = createProduct(
+                "prod_comment_2",
+                "PD-COMMENT-2",
+                "울 니트 B",
+                "울",
+                List.of("M"),
+                List.of("블랙")
+        );
+
+        productRepository.saveAll(List.of(productA, productB));
+        saveProduct(productA, SavedProductSource.CAMERA);
+        saveProduct(productB, SavedProductSource.RECOMMEND);
+
+        when(needsCommentGenerator.generate(any(), any(), any(), any()))
+                .thenReturn("블랙 컬러의 울 소재 M 사이즈를 눈여겨보고 계시네요.");
+
+        NeedsAnalysisResultResponse result = needsAnalysisService.analyze(session.getId());
+
+        assertThat(result.getComment()).isEqualTo("블랙 컬러의 울 소재 M 사이즈를 눈여겨보고 계시네요.");
+    }
+
+    @Test
+    @DisplayName("코멘트 생성기가 실패(null)하면 룰 기반 문장으로 대체된다")
+    void analyze_falls_back_to_template_comment_when_generator_fails() {
+        Product productA = createProduct(
+                "prod_fallback_1",
+                "PD-FALLBACK-1",
+                "울 니트 A",
+                "울",
+                List.of("M"),
+                List.of("블랙")
+        );
+
+        Product productB = createProduct(
+                "prod_fallback_2",
+                "PD-FALLBACK-2",
+                "울 니트 B",
+                "울",
+                List.of("M"),
+                List.of("블랙")
+        );
+
+        productRepository.saveAll(List.of(productA, productB));
+        saveProduct(productA, SavedProductSource.CAMERA);
+        saveProduct(productB, SavedProductSource.RECOMMEND);
+
+        when(needsCommentGenerator.generate(any(), any(), any(), any()))
+                .thenReturn(null);
+
+        NeedsAnalysisResultResponse result = needsAnalysisService.analyze(session.getId());
+
+        assertThat(result.getComment())
+                .isEqualTo("저장하신 제품들은 주로 울 소재, 블랙 계열, M 사이즈를 선호하시는 경향이 있습니다.");
     }
 
     @Test
@@ -255,7 +331,7 @@ class NeedsAnalysisServiceTest {
             List<String> sizes,
             List<String> colors
     ) {
-        return Product.of(
+        Product product = Product.of(
                 id,
                 productCode,
                 name,
@@ -268,6 +344,8 @@ class NeedsAnalysisServiceTest {
                 "테스트 브랜드 설명",
                 null
         );
+        product.updateCategory("상의");
+        return product;
     }
 
     private void saveProduct(
