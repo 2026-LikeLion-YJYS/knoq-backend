@@ -31,6 +31,9 @@ public class Product {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(length = 100)
+    private String category;
+
     @Column(length = 200)
     private String material;
 
@@ -95,6 +98,10 @@ public class Product {
                              String brandOfficialDescription, String aiGeneratedDescription) {
         return new Product(id, productCode, name, material, features, price, sizes, colors, thumbnailUrl,
                 brandOfficialDescription, aiGeneratedDescription);
+    }
+
+    public void updateCategory(String category) {
+        this.category = category;
     }
 
     // 사진 등록 시 기준 벡터를 갱신(최초 등록/재등록 둘 다 이걸로 처리) — 더 이상 안 씀

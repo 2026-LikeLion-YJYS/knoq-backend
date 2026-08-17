@@ -27,6 +27,7 @@ public class NeedsAnalysisService {
     private final SavedProductRepository savedProductRepository;
     private final SessionRepository sessionRepository;
     private final ProductAttributeProvider productAttributeProvider;
+    private final NeedsCommentGenerator needsCommentGenerator;
 
     @Transactional(readOnly = true)
     public NeedsAnalysisResponse getAnalysis(String sessionId) {
@@ -62,7 +63,11 @@ public class NeedsAnalysisService {
                 attributes.stream().flatMap(a -> a.colors().stream()).toList());
         String size = NeedsAnalysisAggregator.mostFrequent(
                 attributes.stream().flatMap(a -> a.sizes().stream()).toList());
-        String comment = NeedsAnalysisAggregator.buildComment(color, material, size);
+        String templateComment = NeedsAnalysisAggregator.buildComment(color, material, size);
+        String generatedComment = needsCommentGenerator.generate(category, color, material, size);
+        String comment = (generatedComment == null || generatedComment.isBlank())
+                ? templateComment
+                : generatedComment;
 
         NeedsAnalysis needsAnalysis = needsAnalysisRepository.findBySessionId(sessionId)
                 .orElseGet(() -> NeedsAnalysis.of(sessionId));
