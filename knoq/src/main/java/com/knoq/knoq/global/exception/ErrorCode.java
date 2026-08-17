@@ -22,6 +22,8 @@ public enum ErrorCode {
     RECOGNITION_ALREADY_PROCESSED(HttpStatus.BAD_REQUEST, "이미 처리된 인식 요청입니다."),
     INVALID_RECOGNITION_CANDIDATE(HttpStatus.BAD_REQUEST, "후보 목록에 없는 제품입니다."),
     VISION_RECOGNITION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "이미지 분석에 실패했습니다."),
+    SAVED_PRODUCT_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "저장할 수 있는 제품 개수를 초과했습니다."),
+    SAVED_PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "저장된 제품을 찾을 수 없습니다."),
     NEEDS_ANALYSIS_NOT_ENOUGH_SAVED_PRODUCTS(HttpStatus.BAD_REQUEST, "저장된 제품이 2개 이상이어야 니즈 분석이 가능합니다.");
 
     private final HttpStatus status;
