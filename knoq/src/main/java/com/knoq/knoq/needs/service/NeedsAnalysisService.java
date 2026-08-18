@@ -2,6 +2,7 @@ package com.knoq.knoq.needs.service;
 
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.needs.dto.request.UpdateNeedsAnalysisRequest;
 import com.knoq.knoq.needs.dto.response.NeedsAnalysisResponse;
 import com.knoq.knoq.needs.dto.response.NeedsAnalysisResultResponse;
 import com.knoq.knoq.needs.entity.NeedsAnalysis;
@@ -71,6 +72,26 @@ public class NeedsAnalysisService {
                 .orElseGet(() -> NeedsAnalysis.of(sessionId));
         needsAnalysis.updateResult(category, color, material, size, comment);
         needsAnalysisRepository.save(needsAnalysis);
+
+        return NeedsAnalysisResultResponse.from(needsAnalysis);
+    }
+
+    @Transactional
+    public NeedsAnalysisResultResponse updateAnalysis(
+            String sessionId,
+            UpdateNeedsAnalysisRequest request
+    ) {
+        sessionExpirationService.getValidSessionAndRefresh(sessionId);
+
+        NeedsAnalysis needsAnalysis = needsAnalysisRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+
+        needsAnalysis.updateUserSelections(
+                request.productCategory(),
+                request.preferredColor(),
+                request.preferredMaterial(),
+                request.preferredSize()
+        );
 
         return NeedsAnalysisResultResponse.from(needsAnalysis);
     }

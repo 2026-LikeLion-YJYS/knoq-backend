@@ -55,4 +55,12 @@ public class NeedsAnalysis {
         this.comment = comment;
         this.analyzedAt = LocalDateTime.now();
     }
+
+    public void updateUserSelections(String productCategory, String preferredColor,
+                                     String preferredMaterial, String preferredSize) {
+        this.productCategory = productCategory;
+        this.preferredColor = preferredColor;
+        this.preferredMaterial = preferredMaterial;
+        this.preferredSize = preferredSize;
+    }
 }
