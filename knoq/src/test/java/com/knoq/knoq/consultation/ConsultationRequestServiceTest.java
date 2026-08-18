@@ -191,7 +191,9 @@ class ConsultationRequestServiceTest {
     @DisplayName("상태 조회는 세션 만료시각을 갱신하지 않는다")
     void get_status_does_not_extend_session_expiration() {
         CreateConsultationResponse created = createConsultationRequest(session.getId());
-        LocalDateTime expiresAtBeforePolling = session.getExpiresAt();
+        LocalDateTime expiresAtBeforePolling = sessionRepository.findById(session.getId())
+                .orElseThrow()
+                .getExpiresAt();
 
         consultationRequestService.getStatus(session.getId(), created.requestId());
 
