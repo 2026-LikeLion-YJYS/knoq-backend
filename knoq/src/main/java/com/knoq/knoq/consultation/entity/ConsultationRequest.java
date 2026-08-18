@@ -73,4 +73,9 @@ public class ConsultationRequest {
     public void addProduct(String productId) {
         products.add(ConsultationRequestProduct.of(this, productId));
     }
+
+    public void updateStatus(RequestStatus status) {
+        this.status = status;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

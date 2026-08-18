@@ -1,8 +1,10 @@
 package com.knoq.knoq.consultation;
 
+import com.knoq.knoq.consultation.dto.request.UpdateConsultationStatusRequest;
 import com.knoq.knoq.consultation.dto.response.StaffRequestDetailResponse;
 import com.knoq.knoq.consultation.dto.response.StaffRequestInboxResponse;
 import com.knoq.knoq.consultation.dto.response.StaffRequestSummaryResponse;
+import com.knoq.knoq.consultation.dto.response.UpdateConsultationStatusResponse;
 import com.knoq.knoq.consultation.entity.ConsultationRequest;
 import com.knoq.knoq.consultation.entity.HelpType;
 import com.knoq.knoq.consultation.entity.RequestStatus;
@@ -221,6 +223,103 @@ class StaffRequestServiceTest {
         );
     }
 
+    @Test
+    @DisplayName("상담 요청 상태는 정해진 순서로 변경되고 updatedAt이 갱신된다")
+    void update_status_success_in_defined_order() {
+        ConsultationRequest request = saveRequest(
+                "req_status_" + testSuffix, session, HelpType.PRODUCT_INFO, false
+        );
+        LocalDateTime initialUpdatedAt = request.getUpdatedAt();
+
+        UpdateConsultationStatusResponse accepted = staffRequestService.updateStatus(
+                authorizationHeader,
+                request.getId(),
+                new UpdateConsultationStatusRequest(RequestStatus.ACCEPTED)
+        );
+        UpdateConsultationStatusResponse inProgress = staffRequestService.updateStatus(
+                authorizationHeader,
+                request.getId(),
+                new UpdateConsultationStatusRequest(RequestStatus.IN_PROGRESS)
+        );
+        UpdateConsultationStatusResponse completed = staffRequestService.updateStatus(
+                authorizationHeader,
+                request.getId(),
+                new UpdateConsultationStatusRequest(RequestStatus.COMPLETED)
+        );
+
+        assertThat(accepted.status()).isEqualTo(RequestStatus.ACCEPTED);
+        assertThat(accepted.updatedAt()).isAfterOrEqualTo(initialUpdatedAt);
+        assertThat(inProgress.status()).isEqualTo(RequestStatus.IN_PROGRESS);
+        assertThat(completed.status()).isEqualTo(RequestStatus.COMPLETED);
+        assertThat(completed.updatedAt()).isAfterOrEqualTo(accepted.updatedAt());
+        assertThat(consultationRequestRepository.findById(request.getId()).orElseThrow().getStatus())
+                .isEqualTo(RequestStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("상태 건너뛰기와 동일 상태 및 EXPIRED 변경은 허용하지 않는다")
+    void update_status_rejects_skipped_same_and_expired_transitions() {
+        ConsultationRequest request = saveRequest(
+                "req_invalid_status_" + testSuffix, session, HelpType.PRODUCT_INFO, false
+        );
+
+        assertInvalidTransition(request.getId(), RequestStatus.IN_PROGRESS);
+        assertInvalidTransition(request.getId(), RequestStatus.REQUESTED);
+        assertInvalidTransition(request.getId(), RequestStatus.EXPIRED);
+        assertThat(request.getStatus()).isEqualTo(RequestStatus.REQUESTED);
+    }
+
+    @Test
+    @DisplayName("상태 역순 변경과 COMPLETED 이후 변경은 허용하지 않는다")
+    void update_status_rejects_reverse_and_terminal_transitions() {
+        ConsultationRequest request = saveRequest(
+                "req_terminal_status_" + testSuffix, session, HelpType.PRODUCT_INFO, false
+        );
+        staffRequestService.updateStatus(
+                authorizationHeader,
+                request.getId(),
+                new UpdateConsultationStatusRequest(RequestStatus.ACCEPTED)
+        );
+
+        assertInvalidTransition(request.getId(), RequestStatus.REQUESTED);
+
+        staffRequestService.updateStatus(
+                authorizationHeader,
+                request.getId(),
+                new UpdateConsultationStatusRequest(RequestStatus.IN_PROGRESS)
+        );
+        staffRequestService.updateStatus(
+                authorizationHeader,
+                request.getId(),
+                new UpdateConsultationStatusRequest(RequestStatus.COMPLETED)
+        );
+
+        assertInvalidTransition(request.getId(), RequestStatus.ACCEPTED);
+        assertInvalidTransition(request.getId(), RequestStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("다른 매장의 상담 요청 상태는 변경할 수 없다")
+    void update_status_fails_when_request_belongs_to_another_store() {
+        Session anotherSession = saveSession(
+                "sess_status_other_" + testSuffix, anotherStore.getId(), "다른고객"
+        );
+        ConsultationRequest request = saveRequest(
+                "req_status_other_" + testSuffix,
+                anotherSession,
+                HelpType.PRODUCT_INFO,
+                false
+        );
+
+        assertThatThrownBy(() -> staffRequestService.updateStatus(
+                authorizationHeader,
+                request.getId(),
+                new UpdateConsultationStatusRequest(RequestStatus.ACCEPTED)
+        ))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CONSULTATION_REQUEST_NOT_FOUND);
+    }
+
     private Session saveSession(String id, Long storeId, String nickname) {
         Session savedSession = Session.of(
                 id,
@@ -260,6 +359,16 @@ class StaffRequestServiceTest {
                 "AI 제품 설명"
         );
         return productRepository.save(product);
+    }
+
+    private void assertInvalidTransition(String requestId, RequestStatus nextStatus) {
+        assertThatThrownBy(() -> staffRequestService.updateStatus(
+                authorizationHeader,
+                requestId,
+                new UpdateConsultationStatusRequest(nextStatus)
+        ))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VALIDATION_ERROR);
     }
 
     private Set<String> fieldNamesOf(Class<?> responseType) {
