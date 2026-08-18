@@ -2,6 +2,7 @@ package com.knoq.knoq.consultation;
 
 import com.knoq.knoq.consultation.dto.request.CreateConsultationRequest;
 import com.knoq.knoq.consultation.dto.response.CreateConsultationResponse;
+import com.knoq.knoq.consultation.dto.response.ConsultationStatusResponse;
 import com.knoq.knoq.consultation.entity.ConsultationRequest;
 import com.knoq.knoq.consultation.entity.HelpType;
 import com.knoq.knoq.consultation.entity.RequestStatus;
@@ -172,10 +173,95 @@ class ConsultationRequestServiceTest {
         );
     }
 
+    @Test
+    @DisplayName("상담 요청 상태를 조회하면 현재 상태와 갱신 시각을 반환한다")
+    void get_status_success() {
+        CreateConsultationResponse created = createConsultationRequest(session.getId());
+
+        ConsultationStatusResponse response = consultationRequestService.getStatus(
+                session.getId(), created.requestId()
+        );
+
+        assertThat(response.requestId()).isEqualTo(created.requestId());
+        assertThat(response.status()).isEqualTo(RequestStatus.REQUESTED);
+        assertThat(response.updatedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("상태 조회는 세션 만료시각을 갱신하지 않는다")
+    void get_status_does_not_extend_session_expiration() {
+        CreateConsultationResponse created = createConsultationRequest(session.getId());
+        LocalDateTime expiresAtBeforePolling = session.getExpiresAt();
+
+        consultationRequestService.getStatus(session.getId(), created.requestId());
+
+        LocalDateTime expiresAtAfterPolling = sessionRepository.findById(session.getId())
+                .orElseThrow()
+                .getExpiresAt();
+        assertThat(expiresAtAfterPolling).isEqualTo(expiresAtBeforePolling);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상담 요청을 조회하면 404 예외가 발생한다")
+    void get_status_fails_when_request_does_not_exist() {
+        assertThatThrownBy(() -> consultationRequestService.getStatus(session.getId(), "req_not_exist"))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CONSULTATION_REQUEST_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("다른 세션의 상담 요청을 조회하면 404 예외가 발생한다")
+    void get_status_fails_when_request_belongs_to_another_session() {
+        CreateConsultationResponse created = createConsultationRequest(session.getId());
+        Session anotherSession = Session.of(
+                "sess_consultation_another",
+                "token_consultation_another",
+                1L,
+                LocalDateTime.now().plusMinutes(30)
+        );
+        sessionRepository.save(anotherSession);
+
+        assertThatThrownBy(() -> consultationRequestService.getStatus(
+                anotherSession.getId(), created.requestId()
+        ))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CONSULTATION_REQUEST_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("만료된 세션으로 상태를 조회하면 410 예외가 발생한다")
+    void get_status_fails_when_session_is_expired() {
+        CreateConsultationResponse created = createConsultationRequest(session.getId());
+        Session expiredSession = Session.of(
+                "sess_status_expired",
+                "token_status_expired",
+                1L,
+                LocalDateTime.now().minusMinutes(1)
+        );
+        sessionRepository.save(expiredSession);
+
+        assertThatThrownBy(() -> consultationRequestService.getStatus(
+                expiredSession.getId(), created.requestId()
+        ))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SESSION_EXPIRED);
+    }
+
     private void assertValidationError(CreateConsultationRequest request) {
         assertThatThrownBy(() -> consultationRequestService.create(session.getId(), request))
                 .isInstanceOf(ApiException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VALIDATION_ERROR);
+    }
+
+    private CreateConsultationResponse createConsultationRequest(String sessionId) {
+        return consultationRequestService.create(
+                sessionId,
+                new CreateConsultationRequest(
+                        HelpType.PRODUCT_RECOMMENDATION,
+                        List.of(),
+                        false
+                )
+        );
     }
 
     private Product saveProduct(String id, String productCode) {

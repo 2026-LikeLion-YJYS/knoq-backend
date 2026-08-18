@@ -48,6 +48,9 @@ public class ConsultationRequest {
     @Column(name = "requested_at", nullable = false, updatable = false)
     private LocalDateTime requestedAt;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @OneToMany(mappedBy = "consultationRequest", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ConsultationRequestProduct> products = new ArrayList<>();
 
@@ -59,6 +62,7 @@ public class ConsultationRequest {
         this.helpType = helpType;
         this.status = RequestStatus.REQUESTED;
         this.includeNeedsAnalysis = includeNeedsAnalysis;
+        this.updatedAt = LocalDateTime.now();
     }
 
     public static ConsultationRequest of(String id, String sessionId, Long storeId, HelpType helpType,
