@@ -1,9 +1,12 @@
 package com.knoq.knoq.consultation.service;
 
+import com.knoq.knoq.consultation.dto.request.UpdateConsultationStatusRequest;
 import com.knoq.knoq.consultation.dto.response.StaffRequestDetailResponse;
 import com.knoq.knoq.consultation.dto.response.StaffRequestInboxResponse;
 import com.knoq.knoq.consultation.dto.response.StaffRequestSummaryResponse;
+import com.knoq.knoq.consultation.dto.response.UpdateConsultationStatusResponse;
 import com.knoq.knoq.consultation.entity.ConsultationRequest;
+import com.knoq.knoq.consultation.entity.RequestStatus;
 import com.knoq.knoq.consultation.repository.ConsultationRequestRepository;
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
@@ -55,9 +58,7 @@ public class StaffRequestService {
     @Transactional(readOnly = true)
     public StaffRequestDetailResponse findDetail(String authorizationHeader, String requestId) {
         Store store = authenticateStore(authorizationHeader);
-        ConsultationRequest request = consultationRequestRepository.findById(requestId)
-                .filter(found -> found.getStoreId().equals(store.getId()))
-                .orElseThrow(() -> new ApiException(ErrorCode.CONSULTATION_REQUEST_NOT_FOUND));
+        ConsultationRequest request = findStoreRequest(store.getId(), requestId);
         Session session = findSession(request.getSessionId());
 
         List<ProductDetailResponse> products = request.getProducts().stream()
@@ -79,6 +80,25 @@ public class StaffRequestService {
                 needsAnalysis,
                 request.getStatus()
         );
+    }
+
+    @Transactional
+    public UpdateConsultationStatusResponse updateStatus(
+            String authorizationHeader,
+            String requestId,
+            UpdateConsultationStatusRequest statusRequest
+    ) {
+        Store store = authenticateStore(authorizationHeader);
+        ConsultationRequest consultationRequest = findStoreRequest(store.getId(), requestId);
+
+        if (statusRequest == null
+                || statusRequest.status() == null
+                || !isValidTransition(consultationRequest.getStatus(), statusRequest.status())) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        consultationRequest.updateStatus(statusRequest.status());
+        return UpdateConsultationStatusResponse.from(consultationRequest);
     }
 
     private Store authenticateStore(String authorizationHeader) {
@@ -106,5 +126,20 @@ public class StaffRequestService {
     private Session findSession(String sessionId) {
         return sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    private ConsultationRequest findStoreRequest(Long storeId, String requestId) {
+        return consultationRequestRepository.findById(requestId)
+                .filter(request -> request.getStoreId().equals(storeId))
+                .orElseThrow(() -> new ApiException(ErrorCode.CONSULTATION_REQUEST_NOT_FOUND));
+    }
+
+    private boolean isValidTransition(RequestStatus currentStatus, RequestStatus nextStatus) {
+        return switch (currentStatus) {
+            case REQUESTED -> nextStatus == RequestStatus.ACCEPTED;
+            case ACCEPTED -> nextStatus == RequestStatus.IN_PROGRESS;
+            case IN_PROGRESS -> nextStatus == RequestStatus.COMPLETED;
+            case COMPLETED, EXPIRED -> false;
+        };
     }
 }
