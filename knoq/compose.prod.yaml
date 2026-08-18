@@ -1,0 +1,58 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: knoq-prod-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-knoq}
+      MYSQL_USER: ${MYSQL_USER:-knoq}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - knoq-prod-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - knoq-prod-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: knoq-prod-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-knoq}?characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: ${MYSQL_USER:-knoq}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      STAFF_PIN: ${STAFF_PIN}
+      STAFF_TOKEN_EXPIRY_HOURS: ${STAFF_TOKEN_EXPIRY_HOURS:-12}
+      SESSION_EXPIRY_MINUTES: ${SESSION_EXPIRY_MINUTES:-60}
+      RECOGNITION_THRESHOLD_ENABLED: ${RECOGNITION_THRESHOLD_ENABLED:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0 -Duser.timezone=Asia/Seoul
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - knoq-prod-network
+
+volumes:
+  knoq-prod-mysql-data:
+
+networks:
+  knoq-prod-network:
+    driver: bridge
