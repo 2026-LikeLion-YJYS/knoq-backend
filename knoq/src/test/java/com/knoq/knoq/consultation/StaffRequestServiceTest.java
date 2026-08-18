@@ -13,7 +13,9 @@ import com.knoq.knoq.consultation.service.StaffRequestService;
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.needs.entity.NeedsAnalysis;
+import com.knoq.knoq.needs.dto.request.UpdateNeedsAnalysisRequest;
 import com.knoq.knoq.needs.repository.NeedsAnalysisRepository;
+import com.knoq.knoq.needs.service.NeedsAnalysisService;
 import com.knoq.knoq.product.entity.Product;
 import com.knoq.knoq.product.repository.ProductRepository;
 import com.knoq.knoq.sessions.entity.LifestyleTag;
@@ -64,6 +66,9 @@ class StaffRequestServiceTest {
 
     @Autowired
     private NeedsAnalysisRepository needsAnalysisRepository;
+
+    @Autowired
+    private NeedsAnalysisService needsAnalysisService;
 
     private Store store;
     private Store anotherStore;
@@ -161,6 +166,40 @@ class StaffRequestServiceTest {
                 .satisfies(detail -> assertThat(detail.productId()).isEqualTo(product.getId()));
         assertThat(response.needsAnalysis()).isNotNull();
         assertThat(response.needsAnalysis().getPreferredMaterial()).isEqualTo("가죽");
+    }
+
+    @Test
+    @DisplayName("고객이 수정한 니즈 분석은 동의한 직원 요청 상세에 반영된다")
+    void find_detail_returns_updated_needs_analysis() {
+        ConsultationRequest request = saveRequest(
+                "req_updated_needs_" + testSuffix,
+                session,
+                HelpType.PRODUCT_INFO,
+                true
+        );
+        NeedsAnalysis needsAnalysis = NeedsAnalysis.of(session.getId());
+        needsAnalysis.updateResult("가방", "블랙", "가죽", "M", "기존 KNOQ'S 발견 문구");
+        needsAnalysisRepository.save(needsAnalysis);
+
+        needsAnalysisService.updateAnalysis(
+                session.getId(),
+                new UpdateNeedsAnalysisRequest(
+                        "토트백 / 쇼퍼백",
+                        "Black · Cognac",
+                        "Leather",
+                        "Medium · Large"
+                )
+        );
+
+        StaffRequestDetailResponse response =
+                staffRequestService.findDetail(authorizationHeader, request.getId());
+
+        assertThat(response.needsAnalysis()).isNotNull();
+        assertThat(response.needsAnalysis().getProductCategory()).isEqualTo("토트백 / 쇼퍼백");
+        assertThat(response.needsAnalysis().getPreferredColor()).isEqualTo("Black · Cognac");
+        assertThat(response.needsAnalysis().getPreferredMaterial()).isEqualTo("Leather");
+        assertThat(response.needsAnalysis().getPreferredSize()).isEqualTo("Medium · Large");
+        assertThat(response.needsAnalysis().getComment()).isEqualTo("기존 KNOQ'S 발견 문구");
     }
 
     @Test

@@ -2,8 +2,10 @@ package com.knoq.knoq.needs;
 
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.needs.dto.request.UpdateNeedsAnalysisRequest;
 import com.knoq.knoq.needs.dto.response.NeedsAnalysisResponse;
 import com.knoq.knoq.needs.dto.response.NeedsAnalysisResultResponse;
+import com.knoq.knoq.needs.entity.NeedsAnalysis;
 import com.knoq.knoq.needs.repository.NeedsAnalysisRepository;
 import com.knoq.knoq.needs.service.NeedsAnalysisService;
 import com.knoq.knoq.needs.service.NeedsCommentGenerator;
@@ -321,6 +323,79 @@ class NeedsAnalysisServiceTest {
                         .orElseThrow()
                         .getPreferredMaterial()
         ).isEqualTo("면");
+    }
+
+    @Test
+    @DisplayName("사용자가 니즈 항목을 수정하면 결과가 저장되고 기존 코멘트와 분석 시각은 유지된다")
+    void update_analysis_saves_user_selections_and_preserves_analysis_metadata() {
+        NeedsAnalysis needsAnalysis = NeedsAnalysis.of(session.getId());
+        needsAnalysis.updateResult("가방", "블랙", "가죽", "M", "기존 KNOQ'S 발견 문구");
+        needsAnalysisRepository.save(needsAnalysis);
+
+        LocalDateTime originalAnalyzedAt = needsAnalysis.getAnalyzedAt();
+        LocalDateTime originalExpiresAt = session.getExpiresAt();
+
+        NeedsAnalysisResultResponse result = needsAnalysisService.updateAnalysis(
+                session.getId(),
+                new UpdateNeedsAnalysisRequest(
+                        "토트백 / 쇼퍼백",
+                        "Black · Cognac",
+                        "Leather",
+                        "Medium · Large"
+                )
+        );
+
+        assertThat(result.getProductCategory()).isEqualTo("토트백 / 쇼퍼백");
+        assertThat(result.getPreferredColor()).isEqualTo("Black · Cognac");
+        assertThat(result.getPreferredMaterial()).isEqualTo("Leather");
+        assertThat(result.getPreferredSize()).isEqualTo("Medium · Large");
+        assertThat(result.getComment()).isEqualTo("기존 KNOQ'S 발견 문구");
+        assertThat(result.getAnalyzedAt()).isEqualTo(originalAnalyzedAt);
+        assertThat(sessionRepository.findById(session.getId()).orElseThrow().getExpiresAt())
+                .isAfter(originalExpiresAt);
+
+        NeedsAnalysisResponse getResponse = needsAnalysisService.getAnalysis(session.getId());
+        assertThat(getResponse.getAnalysis().getProductCategory()).isEqualTo("토트백 / 쇼퍼백");
+        assertThat(getResponse.getAnalysis().getPreferredColor()).isEqualTo("Black · Cognac");
+        assertThat(getResponse.getAnalysis().getPreferredMaterial()).isEqualTo("Leather");
+        assertThat(getResponse.getAnalysis().getPreferredSize()).isEqualTo("Medium · Large");
+        assertThat(getResponse.getAnalysis().getComment()).isEqualTo("기존 KNOQ'S 발견 문구");
+    }
+
+    @Test
+    @DisplayName("기존 니즈 분석이 없으면 수정 요청 시 404 예외가 발생한다")
+    void update_analysis_fails_when_analysis_does_not_exist() {
+        UpdateNeedsAnalysisRequest request = new UpdateNeedsAnalysisRequest(
+                "가방", "블랙", "가죽", "M"
+        );
+
+        assertThatThrownBy(() -> needsAnalysisService.updateAnalysis(session.getId(), request))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("만료된 세션은 니즈 분석 결과를 수정할 수 없다")
+    void update_analysis_fails_when_session_is_expired() {
+        Session expiredSession = Session.of(
+                "sess_needs_expired",
+                "token_needs_expired",
+                1L,
+                LocalDateTime.now().minusMinutes(1)
+        );
+        sessionRepository.save(expiredSession);
+
+        NeedsAnalysis needsAnalysis = NeedsAnalysis.of(expiredSession.getId());
+        needsAnalysis.updateResult("가방", "블랙", "가죽", "M", "기존 문구");
+        needsAnalysisRepository.save(needsAnalysis);
+
+        UpdateNeedsAnalysisRequest request = new UpdateNeedsAnalysisRequest(
+                "토트백", "브라운", "캔버스", "L"
+        );
+
+        assertThatThrownBy(() -> needsAnalysisService.updateAnalysis(expiredSession.getId(), request))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SESSION_EXPIRED);
     }
 
     private Product createProduct(
