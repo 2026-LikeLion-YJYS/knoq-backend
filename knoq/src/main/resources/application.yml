@@ -40,6 +40,9 @@ knoq:
   recognition:
     threshold-enabled: ${RECOGNITION_THRESHOLD_ENABLED:true}
 
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
   openai:
     api-key: ${OPENAI_API_KEY:dummy-key-for-local}
 
@@ -74,6 +77,9 @@ knoq:
 
   recognition:
     threshold-enabled: ${RECOGNITION_THRESHOLD_ENABLED:true}
+
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
   openai:
     api-key: ${OPENAI_API_KEY}
