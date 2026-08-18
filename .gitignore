@@ -36,5 +36,7 @@ dist/
 out/
 
 
-application.yml
-application-*.yml
+# Environment-specific files may contain local or production secrets.
+application-local.yml
+application-prod.yml
+application-secret.yml
