@@ -11,6 +11,9 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/staff/requests")
 @Tag(name = "Staff Request", description = "직원 상담 요청 조회 API")
+@SecurityScheme(
+        name = "staffBearerAuth",
+        type = SecuritySchemeType.HTTP,
+        scheme = "bearer",
+        bearerFormat = "JWT"
+)
+@SecurityRequirement(name = "staffBearerAuth")
 public class StaffRequestController {
 
     private final StaffRequestService staffRequestService;
@@ -40,7 +50,7 @@ public class StaffRequestController {
             @ApiResponse(responseCode = "401", description = "직원 인증 실패")
     })
     public ResponseEntity<StaffRequestInboxResponse> findAll(
-            @Parameter(example = "Bearer {staffToken}")
+            @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader
     ) {
         return ResponseEntity.ok(staffRequestService.findAll(authorizationHeader));
@@ -56,7 +66,7 @@ public class StaffRequestController {
             @ApiResponse(responseCode = "404", description = "상담 요청을 찾을 수 없음")
     })
     public ResponseEntity<StaffRequestDetailResponse> findDetail(
-            @Parameter(example = "Bearer {staffToken}")
+            @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @Parameter(example = "req_27") @PathVariable String requestId
     ) {
@@ -74,7 +84,7 @@ public class StaffRequestController {
             @ApiResponse(responseCode = "404", description = "상담 요청을 찾을 수 없음")
     })
     public ResponseEntity<UpdateConsultationStatusResponse> updateStatus(
-            @Parameter(example = "Bearer {staffToken}")
+            @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @Parameter(example = "req_27") @PathVariable String requestId,
             @Valid @RequestBody UpdateConsultationStatusRequest request
