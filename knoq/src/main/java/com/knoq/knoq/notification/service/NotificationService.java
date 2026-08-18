@@ -2,22 +2,17 @@ package com.knoq.knoq.notification.service;
 
 import com.knoq.knoq.consultation.entity.ConsultationRequest;
 import com.knoq.knoq.consultation.entity.RequestStatus;
-import com.knoq.knoq.global.exception.ApiException;
-import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.global.util.IdGenerator;
 import com.knoq.knoq.notification.dto.response.NotificationListResponse;
 import com.knoq.knoq.notification.dto.response.NotificationResponse;
 import com.knoq.knoq.notification.entity.Notification;
 import com.knoq.knoq.notification.repository.NotificationRepository;
-import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.event.SessionFinishedEvent;
-import com.knoq.knoq.sessions.repository.SessionRepository;
+import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +30,7 @@ public class NotificationService {
             "상담이 종료됐어요. 감사합니다.";
 
     private final NotificationRepository notificationRepository;
-    private final SessionRepository sessionRepository;
+    private final SessionExpirationService sessionExpirationService;
 
     @Transactional
     public void createRequested(ConsultationRequest request) {
@@ -59,7 +54,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public NotificationListResponse findAll(String sessionId) {
-        findValidSession(sessionId);
+        sessionExpirationService.getValidSession(sessionId);
 
         return new NotificationListResponse(
                 notificationRepository.findAllBySessionIdOrderByCreatedAtDesc(sessionId)
@@ -85,12 +80,4 @@ public class NotificationService {
         ));
     }
 
-    private Session findValidSession(String sessionId) {
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
-        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new ApiException(ErrorCode.SESSION_EXPIRED);
-        }
-        return session;
-    }
 }

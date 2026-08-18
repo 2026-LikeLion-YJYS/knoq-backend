@@ -124,6 +124,10 @@ public class Session {
         this.lifestyleTags.addAll(tags);
     }
 
+    public void refreshExpiration(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
     // FR-400: ACCOUNT 세션 종료 — 지우지 않고 즉시 만료 처리만 함 (계정 데이터는 남아야 하니까)
     public void endSession() {
         this.expiresAt = LocalDateTime.now();

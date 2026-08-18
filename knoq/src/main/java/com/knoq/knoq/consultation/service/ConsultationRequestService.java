@@ -13,12 +13,11 @@ import com.knoq.knoq.global.util.IdGenerator;
 import com.knoq.knoq.notification.service.NotificationService;
 import com.knoq.knoq.product.repository.ProductRepository;
 import com.knoq.knoq.sessions.entity.Session;
-import com.knoq.knoq.sessions.repository.SessionRepository;
+import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -33,13 +32,13 @@ public class ConsultationRequestService {
     );
 
     private final ConsultationRequestRepository consultationRequestRepository;
-    private final SessionRepository sessionRepository;
+    private final SessionExpirationService sessionExpirationService;
     private final ProductRepository productRepository;
     private final NotificationService notificationService;
 
     @Transactional
     public CreateConsultationResponse create(String sessionId, CreateConsultationRequest request) {
-        Session session = findValidSession(sessionId);
+        Session session = sessionExpirationService.getValidSessionAndRefresh(sessionId);
         validateRequest(request);
         validateNoActiveRequest(sessionId);
         validateProducts(request.productIds());
@@ -58,22 +57,13 @@ public class ConsultationRequestService {
 
     @Transactional(readOnly = true)
     public ConsultationStatusResponse getStatus(String sessionId, String requestId) {
-        findValidSession(sessionId);
+        sessionExpirationService.getValidSession(sessionId);
 
         ConsultationRequest consultationRequest = consultationRequestRepository.findById(requestId)
                 .filter(request -> request.getSessionId().equals(sessionId))
                 .orElseThrow(() -> new ApiException(ErrorCode.CONSULTATION_REQUEST_NOT_FOUND));
 
         return ConsultationStatusResponse.from(consultationRequest);
-    }
-
-    private Session findValidSession(String sessionId) {
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
-        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new ApiException(ErrorCode.SESSION_EXPIRED);
-        }
-        return session;
     }
 
     private void validateRequest(CreateConsultationRequest request) {

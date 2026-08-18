@@ -6,27 +6,25 @@ import com.knoq.knoq.product.entity.Product;
 import com.knoq.knoq.product.repository.ProductRepository;
 import com.knoq.knoq.recommendation.dto.response.FitAnalysisResponse;
 import com.knoq.knoq.sessions.entity.Session;
-import com.knoq.knoq.sessions.repository.SessionRepository;
+import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class FitAnalysisService {
 
-    private final SessionRepository sessionRepository;
+    private final SessionExpirationService sessionExpirationService;
     private final ProductRepository productRepository;
     private final FitAnalysisGenerator fitAnalysisGenerator;
     private final RecommendationRuleMatcher recommendationRuleMatcher;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public FitAnalysisResponse analyze(String sessionId, String productId) {
-        Session session = findValidSession(sessionId);
-        // TODO(A 협의): FR-203은 실제 사용자 동작이므로 공통 세션 만료시간 갱신 방식이 확정되면 연결한다.
+        Session session = sessionExpirationService.getValidSessionAndRefresh(sessionId);
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException(ErrorCode.PRODUCT_NOT_FOUND));
 
@@ -57,12 +55,4 @@ public class FitAnalysisService {
         );
     }
 
-    private Session findValidSession(String sessionId) {
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
-        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new ApiException(ErrorCode.SESSION_EXPIRED);
-        }
-        return session;
-    }
 }

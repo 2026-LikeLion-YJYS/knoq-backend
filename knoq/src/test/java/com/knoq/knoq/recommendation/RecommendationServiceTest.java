@@ -104,6 +104,19 @@ class RecommendationServiceTest {
     }
 
     @Test
+    @DisplayName("추천 요청은 실제 사용자 동작이므로 세션 만료시간을 갱신한다")
+    void recommendation_extends_session_expiration() {
+        LocalDateTime expiresAtBeforeAction = session.getExpiresAt();
+
+        recommendationService.recommend(session.getId());
+
+        LocalDateTime expiresAtAfterAction = sessionRepository.findById(session.getId())
+                .orElseThrow()
+                .getExpiresAt();
+        assertThat(expiresAtAfterAction).isAfter(expiresAtBeforeAction);
+    }
+
+    @Test
     @DisplayName("추천을 다시 요청해도 같은 제품은 보관함에 중복 저장되지 않는다")
     void repeated_recommendation_does_not_duplicate_saved_products() {
         RecommendationResponse first = recommendationService.recommend(session.getId());
