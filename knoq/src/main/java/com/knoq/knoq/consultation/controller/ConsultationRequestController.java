@@ -2,6 +2,7 @@ package com.knoq.knoq.consultation.controller;
 
 import com.knoq.knoq.consultation.dto.request.CreateConsultationRequest;
 import com.knoq.knoq.consultation.dto.response.CreateConsultationResponse;
+import com.knoq.knoq.consultation.dto.response.ConsultationStatusResponse;
 import com.knoq.knoq.consultation.service.ConsultationRequestService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,6 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,5 +46,20 @@ public class ConsultationRequestController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(consultationRequestService.create(sessionId, request));
+    }
+
+    @GetMapping("/{requestId}")
+    @Operation(summary = "상담 요청 상태 조회", description = "고객이 상담 요청의 현재 상태를 폴링으로 조회합니다. 세션 만료시각은 갱신하지 않습니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "상담 요청 상태 조회 성공",
+                    content = @Content(schema = @Schema(implementation = ConsultationStatusResponse.class))),
+            @ApiResponse(responseCode = "404", description = "세션 또는 상담 요청을 찾을 수 없음"),
+            @ApiResponse(responseCode = "410", description = "세션 만료")
+    })
+    public ResponseEntity<ConsultationStatusResponse> getStatus(
+            @Parameter(example = "sess_abc123") @PathVariable String sessionId,
+            @Parameter(example = "req_27") @PathVariable String requestId
+    ) {
+        return ResponseEntity.ok(consultationRequestService.getStatus(sessionId, requestId));
     }
 }

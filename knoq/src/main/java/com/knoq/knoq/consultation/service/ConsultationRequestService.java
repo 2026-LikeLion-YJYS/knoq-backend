@@ -2,6 +2,7 @@ package com.knoq.knoq.consultation.service;
 
 import com.knoq.knoq.consultation.dto.request.CreateConsultationRequest;
 import com.knoq.knoq.consultation.dto.response.CreateConsultationResponse;
+import com.knoq.knoq.consultation.dto.response.ConsultationStatusResponse;
 import com.knoq.knoq.consultation.entity.ConsultationRequest;
 import com.knoq.knoq.consultation.entity.HelpType;
 import com.knoq.knoq.consultation.entity.RequestStatus;
@@ -48,6 +49,17 @@ public class ConsultationRequestService {
         request.productIds().forEach(consultationRequest::addProduct);
 
         return CreateConsultationResponse.from(consultationRequestRepository.save(consultationRequest));
+    }
+
+    @Transactional(readOnly = true)
+    public ConsultationStatusResponse getStatus(String sessionId, String requestId) {
+        findValidSession(sessionId);
+
+        ConsultationRequest consultationRequest = consultationRequestRepository.findById(requestId)
+                .filter(request -> request.getSessionId().equals(sessionId))
+                .orElseThrow(() -> new ApiException(ErrorCode.CONSULTATION_REQUEST_NOT_FOUND));
+
+        return ConsultationStatusResponse.from(consultationRequest);
     }
 
     private Session findValidSession(String sessionId) {
