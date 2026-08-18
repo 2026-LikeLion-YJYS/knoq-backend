@@ -18,8 +18,7 @@ import com.knoq.knoq.recognition.entity.RecognitionStatus;
 import com.knoq.knoq.recognition.repository.RecognitionRepository;
 import com.knoq.knoq.saved.entity.SavedProduct;
 import com.knoq.knoq.saved.service.SavedProductService;
-import com.knoq.knoq.sessions.entity.Session;
-import com.knoq.knoq.sessions.repository.SessionRepository;
+import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +29,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -54,13 +52,13 @@ public class RecognitionService {
 
     private final RecognitionRepository recognitionRepository;
     private final ProductRepository productRepository;
-    private final SessionRepository sessionRepository;
+    private final SessionExpirationService sessionExpirationService;
     private final OpenAiVisionClient openAiVisionClient;
     private final SavedProductService savedProductService;
 
     @Transactional
     public RecognitionResponse recognize(String sessionId, MultipartFile image) {
-        findValidSession(sessionId);
+        sessionExpirationService.getValidSessionAndRefresh(sessionId);
         if (image == null || image.isEmpty()) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR);
         }
@@ -183,6 +181,7 @@ public class RecognitionService {
 
     @Transactional
     public ConfirmRecognitionResponse confirm(String sessionId, String recognitionId, ConfirmRecognitionRequest request) {
+        sessionExpirationService.getValidSessionAndRefresh(sessionId);
         Recognition recognition = findValidRecognition(sessionId, recognitionId);
 
         if (!request.confirmed()) {
@@ -202,23 +201,14 @@ public class RecognitionService {
         return new ConfirmRecognitionResponse(request.productId(), true, String.valueOf(savedProduct.getId()));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ProductLookupResponse lookupProduct(String sessionId, ProductLookupRequest request) {
-        findValidSession(sessionId);
+        sessionExpirationService.getValidSessionAndRefresh(sessionId);
 
         Product product = productRepository.findByProductCode(request.productCode())
                 .orElseThrow(() -> new ApiException(ErrorCode.PRODUCT_NOT_FOUND));
 
         return new ProductLookupResponse(product.getId(), product.getName());
-    }
-
-    private Session findValidSession(String sessionId) {
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
-        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new ApiException(ErrorCode.SESSION_EXPIRED);
-        }
-        return session;
     }
 
     private Recognition findValidRecognition(String sessionId, String recognitionId) {

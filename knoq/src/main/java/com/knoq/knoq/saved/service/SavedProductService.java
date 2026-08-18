@@ -5,6 +5,7 @@ import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.saved.entity.SavedProduct;
 import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.saved.entity.SavedProductSource;
+import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ public class SavedProductService {
     private static final int MAX_SAVED = 9;
 
     private final SavedProductRepository repository;
+    private final SessionExpirationService sessionExpirationService;
 
     @Transactional
     public SavedProduct saveFromCamera(
@@ -49,6 +51,7 @@ public class SavedProductService {
             String productId,
             SavedProductSource source
     ) {
+        sessionExpirationService.getValidSessionAndRefresh(sessionId);
 
         return repository
                 .findBySessionIdAndProductId(sessionId, productId)
@@ -69,8 +72,9 @@ public class SavedProductService {
                 });
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SavedProduct> findAll(String sessionId) {
+        sessionExpirationService.getValidSessionAndRefresh(sessionId);
         return repository
                 .findBySessionIdOrderBySavedAtDesc(sessionId);
     }
@@ -80,6 +84,7 @@ public class SavedProductService {
             String sessionId,
             String productId
     ) {
+        sessionExpirationService.getValidSessionAndRefresh(sessionId);
 
         SavedProduct savedProduct =
                 repository
