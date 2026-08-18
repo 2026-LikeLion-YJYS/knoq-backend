@@ -10,6 +10,7 @@ import com.knoq.knoq.consultation.repository.ConsultationRequestRepository;
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.global.util.IdGenerator;
+import com.knoq.knoq.notification.service.NotificationService;
 import com.knoq.knoq.product.repository.ProductRepository;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.repository.SessionRepository;
@@ -34,6 +35,7 @@ public class ConsultationRequestService {
     private final ConsultationRequestRepository consultationRequestRepository;
     private final SessionRepository sessionRepository;
     private final ProductRepository productRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public CreateConsultationResponse create(String sessionId, CreateConsultationRequest request) {
@@ -48,7 +50,10 @@ public class ConsultationRequestService {
         );
         request.productIds().forEach(consultationRequest::addProduct);
 
-        return CreateConsultationResponse.from(consultationRequestRepository.save(consultationRequest));
+        ConsultationRequest savedRequest = consultationRequestRepository.saveAndFlush(consultationRequest);
+        notificationService.createRequested(savedRequest);
+
+        return CreateConsultationResponse.from(savedRequest);
     }
 
     @Transactional(readOnly = true)

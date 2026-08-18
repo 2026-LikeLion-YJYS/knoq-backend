@@ -12,6 +12,7 @@ import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.needs.dto.response.NeedsAnalysisSummary;
 import com.knoq.knoq.needs.repository.NeedsAnalysisRepository;
+import com.knoq.knoq.notification.service.NotificationService;
 import com.knoq.knoq.product.dto.ProductDetailResponse;
 import com.knoq.knoq.product.service.ProductService;
 import com.knoq.knoq.sessions.entity.Session;
@@ -38,6 +39,7 @@ public class StaffRequestService {
     private final ProductService productService;
     private final StoreRepository storeRepository;
     private final StaffTokenProvider staffTokenProvider;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public StaffRequestInboxResponse findAll(String authorizationHeader) {
@@ -98,6 +100,7 @@ public class StaffRequestService {
         }
 
         consultationRequest.updateStatus(statusRequest.status());
+        notificationService.createForStatusChange(consultationRequest);
         return UpdateConsultationStatusResponse.from(consultationRequest);
     }
 
