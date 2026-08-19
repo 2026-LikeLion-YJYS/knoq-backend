@@ -30,9 +30,11 @@ public class ProductService {
                 product.getId(),
                 product.getName(),
                 orNoInfo(product.getMaterial()),
+                orNoInfo(product.getFeatures()),
                 product.getPrice(),
                 product.getSizes(),
                 product.getColors(),
+                product.getThumbnailUrl(),
                 product.getAiGeneratedDescription() // 없으면 그냥 null
         );
     }
