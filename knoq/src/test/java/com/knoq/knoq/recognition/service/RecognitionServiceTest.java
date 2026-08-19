@@ -9,8 +9,7 @@ import com.knoq.knoq.recognition.dto.ConfirmRecognitionResponse;
 import com.knoq.knoq.recognition.dto.ProductLookupRequest;
 import com.knoq.knoq.recognition.dto.ProductLookupResponse;
 import com.knoq.knoq.recognition.dto.RecognitionResponse;
-import com.knoq.knoq.saved.entity.SavedProduct;
-import com.knoq.knoq.saved.service.SavedProductService;
+import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.repository.SessionRepository;
 import com.knoq.knoq.store.entity.Store;
@@ -53,9 +52,8 @@ class RecognitionServiceTest {
     @MockitoBean
     private OpenAiVisionClient openAiVisionClient;
 
-    // 진짜 SavedProductService(B 코드) 안 타게 mock 처리
-    @MockitoBean
-    private SavedProductService savedProductService;
+    @Autowired
+    private SavedProductRepository savedProductRepository;
 
     private String sessionId;
 
@@ -121,21 +119,17 @@ class RecognitionServiceTest {
     }
 
     @Test
-    void 후보_안에_있는_제품으로_확정하면_성공한다() {
+    void 후보_안에_있는_제품으로_확정해도_보관함에_자동_저장하지_않는다() {
         saveProduct("prod_a", "PD-A", "제품A", List.of());
         RecognitionResponse recognized = recognitionService.recognize(sessionId, fakeImage());
         String productId = recognized.candidates().get(0).productId();
-
-        SavedProduct mockSaved = org.mockito.Mockito.mock(SavedProduct.class);
-        when(mockSaved.getId()).thenReturn(1L); // SavedProduct의 PK가 Long이라 그대로 맞춤
-        when(savedProductService.saveFromCamera(sessionId, productId)).thenReturn(mockSaved);
 
         ConfirmRecognitionResponse response = recognitionService.confirm(
                 sessionId, recognized.recognitionId(), new ConfirmRecognitionRequest(productId, true));
 
         assertThat(response.productId()).isEqualTo(productId);
         assertThat(response.confirmed()).isTrue();
-        assertThat(response.savedProductId()).isEqualTo("1");
+        assertThat(savedProductRepository.countBySessionId(sessionId)).isZero();
     }
 
     @Test

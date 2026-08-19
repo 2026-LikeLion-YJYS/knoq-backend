@@ -16,8 +16,6 @@ import com.knoq.knoq.recognition.entity.Recognition;
 import com.knoq.knoq.recognition.entity.RecognitionCandidate;
 import com.knoq.knoq.recognition.entity.RecognitionStatus;
 import com.knoq.knoq.recognition.repository.RecognitionRepository;
-import com.knoq.knoq.saved.entity.SavedProduct;
-import com.knoq.knoq.saved.service.SavedProductService;
 import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -54,7 +52,6 @@ public class RecognitionService {
     private final ProductRepository productRepository;
     private final SessionExpirationService sessionExpirationService;
     private final OpenAiVisionClient openAiVisionClient;
-    private final SavedProductService savedProductService;
 
     @Transactional
     public RecognitionResponse recognize(String sessionId, MultipartFile image) {
@@ -194,11 +191,7 @@ public class RecognitionService {
         }
 
         recognition.confirm();
-
-        // confirm과 저장을 같은 트랜잭션 안에서 처리 — 저장이 실패하면 confirm도 같이 롤백됨
-        SavedProduct savedProduct = savedProductService.saveFromCamera(sessionId, request.productId());
-        // savedProduct.getId()가 Long이라 String으로 변환 (다른 ID들처럼 응답은 문자열로 통일)
-        return new ConfirmRecognitionResponse(request.productId(), true, String.valueOf(savedProduct.getId()));
+        return new ConfirmRecognitionResponse(request.productId(), true);
     }
 
     @Transactional
