@@ -21,17 +21,17 @@ upload_image() {
 }
 
 for image_name in front side top; do
-  upload_image "prod_12" "${image_name}"
-  upload_image "prod_33" "${image_name}"
-  upload_image "prod_34" "${image_name}"
-  upload_image "prod_35" "${image_name}"
-  upload_image "prod_36" "${image_name}"
-  upload_image "prod_37" "${image_name}"
-  upload_image "prod_38" "${image_name}"
-  upload_image "prod_39" "${image_name}"
-  upload_image "prod_40" "${image_name}"
+  upload_image "prod_1" "${image_name}"
+  upload_image "prod_2" "${image_name}"
+  upload_image "prod_3" "${image_name}"
+  upload_image "prod_4" "${image_name}"
+  upload_image "prod_5" "${image_name}"
+  upload_image "prod_6" "${image_name}"
+  upload_image "prod_7" "${image_name}"
+  upload_image "prod_8" "${image_name}"
+  upload_image "prod_9" "${image_name}"
 done
 
-upload_image "prod_12" "detail"
+upload_image "prod_1" "detail"
 
 echo "All local recognition reference images were registered."

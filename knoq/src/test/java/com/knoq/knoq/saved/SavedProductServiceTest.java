@@ -38,12 +38,12 @@ class SavedProductServiceTest {
 
         service.saveFromCamera(
                 "sess_test_1",
-                "prod_12"
+                "prod_1"
         );
 
         service.saveFromCamera(
                 "sess_test_1",
-                "prod_12"
+                "prod_1"
         );
 
         assertThat(
@@ -56,18 +56,18 @@ class SavedProductServiceTest {
 
         service.saveFromCamera(
                 "sess_test_2",
-                "prod_12"
+                "prod_1"
         );
 
         service.saveFromRecommend(
                 "sess_test_2",
-                "prod_33"
+                "prod_2"
         );
 
         assertThat(
                 service.findAll("sess_test_2")
                         .get(0)
                         .getProductId()
-        ).isEqualTo("prod_33");
+        ).isEqualTo("prod_2");
     }
 }

@@ -37,7 +37,7 @@ public class FitAnalysisController {
     })
     public ResponseEntity<FitAnalysisResponse> analyzeFit(
             @Parameter(example = "sess_abc123") @PathVariable String sessionId,
-            @Parameter(example = "prod_12") @PathVariable String productId
+            @Parameter(example = "prod_1") @PathVariable String productId
     ) {
         return ResponseEntity.ok(fitAnalysisService.analyze(sessionId, productId));
     }

@@ -15,7 +15,7 @@ public record CreateConsultationRequest(
 
         @NotNull
         @Size(max = 3)
-        @Schema(example = "[\"prod_12\", \"prod_33\"]")
+        @Schema(example = "[\"prod_1\", \"prod_2\"]")
         List<@NotBlank String> productIds,
 
         @Schema(example = "true")

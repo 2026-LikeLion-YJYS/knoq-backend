@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SaveProductRequest {
 
-    @Schema(example = "prod_12")
+    @Schema(example = "prod_1")
     @NotBlank
     private String productId;
 
