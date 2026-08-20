@@ -2,6 +2,11 @@ package com.knoq.knoq.sessions.service;
 
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.product.entity.Product;
+import com.knoq.knoq.product.repository.ProductRepository;
+import com.knoq.knoq.saved.entity.SavedProductSource;
+import com.knoq.knoq.saved.repository.SavedProductRepository;
+import com.knoq.knoq.saved.service.SavedProductService;
 import com.knoq.knoq.sessions.client.KakaoApiClient;
 import com.knoq.knoq.sessions.dto.ConsentRequest;
 import com.knoq.knoq.sessions.dto.ConsentsResponse;
@@ -54,6 +59,15 @@ class SessionServiceTest {
 
     @Autowired
     private SessionRepository sessionRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private SavedProductRepository savedProductRepository;
+
+    @Autowired
+    private SavedProductService savedProductService;
 
     // 진짜 카카오 서버에 요청 안 보내고, 이 테스트 안에서만 가짜로 동작을 지정할 수 있는 가짜 객체로 대체
     @MockitoBean
@@ -219,6 +233,20 @@ class SessionServiceTest {
                 previous.sessionId(),
                 new LifestyleTagsRequest(List.of(LifestyleTag.MINIMAL, LifestyleTag.CLASSIC))
         );
+        Product previousProduct = productRepository.save(Product.of(
+                "prod_returning_" + UUID.randomUUID().toString().substring(0, 8),
+                "RETURNING-" + UUID.randomUUID().toString().substring(0, 8),
+                "이전에 저장한 가방",
+                "가죽",
+                "재방문 복원 테스트",
+                100_000L,
+                List.of("M"),
+                List.of("블랙"),
+                "/products/returning.png",
+                "설명",
+                "AI 설명"
+        ));
+        savedProductService.saveFromCamera(previous.sessionId(), previousProduct.getId());
         sessionService.finishShopping(previous.sessionId());
 
         CreateSessionResponse current = sessionService.createSession(
@@ -239,6 +267,13 @@ class SessionServiceTest {
         assertThat(restored.nickname()).isEqualTo("레몬토끼");
         assertThat(restored.lifestyleTags())
                 .containsExactly(LifestyleTag.MINIMAL, LifestyleTag.CLASSIC);
+        assertThat(savedProductRepository.findBySessionIdAndProductId(
+                current.sessionId(), previousProduct.getId()
+        ))
+                .isPresent()
+                .get()
+                .extracting(savedProduct -> savedProduct.getSource())
+                .isEqualTo(SavedProductSource.CAMERA);
     }
 
     @Test

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -84,6 +86,53 @@ public class SavedProductService {
         sessionExpirationService.getValidSessionAndRefresh(sessionId);
         return repository
                 .findBySessionIdOrderBySavedAtDesc(sessionId);
+    }
+
+    @Transactional
+    public void restoreFromPreviousSessions(
+            String currentSessionId,
+            List<String> previousSessionIds
+    ) {
+        sessionExpirationService.getValidSessionAndRefresh(currentSessionId);
+        if (previousSessionIds == null || previousSessionIds.isEmpty()) {
+            return;
+        }
+
+        List<SavedProduct> currentProducts =
+                repository.findBySessionIdOrderBySavedAtDesc(currentSessionId);
+        Set<String> restoredProductIds = new LinkedHashSet<>();
+        currentProducts.stream()
+                .map(SavedProduct::getProductId)
+                .forEach(restoredProductIds::add);
+
+        int remainingSlots = maxSavedProducts - restoredProductIds.size();
+        if (remainingSlots <= 0) {
+            return;
+        }
+
+        List<SavedProduct> previousProducts =
+                repository.findBySessionIdInOrderBySavedAtDesc(previousSessionIds);
+        Set<String> existingProductIds = productRepository.findAllById(
+                        previousProducts.stream()
+                                .map(SavedProduct::getProductId)
+                                .distinct()
+                                .toList()
+                ).stream()
+                .map(product -> product.getId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        List<SavedProduct> productsToRestore = previousProducts.stream()
+                .filter(previous -> existingProductIds.contains(previous.getProductId()))
+                .filter(previous -> restoredProductIds.add(previous.getProductId()))
+                .limit(remainingSlots)
+                .map(previous -> SavedProduct.of(
+                        currentSessionId,
+                        previous.getProductId(),
+                        previous.getSource()
+                ))
+                .toList();
+
+        repository.saveAll(productsToRestore);
     }
 
     @Transactional

@@ -2,6 +2,7 @@ package com.knoq.knoq.saved;
 
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.product.entity.Product;
 import com.knoq.knoq.product.repository.ProductRepository;
 import com.knoq.knoq.saved.entity.SavedProduct;
 import com.knoq.knoq.saved.entity.SavedProductSource;
@@ -19,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -134,6 +136,44 @@ class SavedProductServiceTest {
         assertThat(result).isSameAs(existing);
         verify(savedProductRepository, never()).countBySessionId("sess_test");
         verify(savedProductRepository, never()).save(any(SavedProduct.class));
+    }
+
+    @Test
+    @DisplayName("재방문 시 이전 제품을 최근 저장순으로 중복 없이 복원한다")
+    void restoreFromPreviousSessions_restoresUniqueProducts() {
+        SavedProduct latest = SavedProduct.of("sess_previous_2", "prod_2", SavedProductSource.RECOMMEND);
+        SavedProduct duplicate = SavedProduct.of("sess_previous_1", "prod_2", SavedProductSource.CAMERA);
+        SavedProduct older = SavedProduct.of("sess_previous_1", "prod_1", SavedProductSource.CAMERA);
+        Product product2 = Product.of(
+                "prod_2", "RESTORE-2", "제품 2", null, null, 1L,
+                List.of(), List.of(), null, null, null
+        );
+        Product product1 = Product.of(
+                "prod_1", "RESTORE-1", "제품 1", null, null, 1L,
+                List.of(), List.of(), null, null, null
+        );
+
+        when(savedProductRepository.findBySessionIdOrderBySavedAtDesc("sess_test"))
+                .thenReturn(List.of());
+        when(savedProductRepository.findBySessionIdInOrderBySavedAtDesc(
+                List.of("sess_previous_2", "sess_previous_1")))
+                .thenReturn(List.of(latest, duplicate, older));
+        when(productRepository.findAllById(List.of("prod_2", "prod_1")))
+                .thenReturn(List.of(product2, product1));
+
+        savedProductService.restoreFromPreviousSessions(
+                "sess_test", List.of("sess_previous_2", "sess_previous_1")
+        );
+
+        verify(savedProductRepository).saveAll(org.mockito.ArgumentMatchers.argThat(products -> {
+            List<SavedProduct> restored = new java.util.ArrayList<>();
+            products.forEach(restored::add);
+            return restored.size() == 2
+                    && restored.get(0).getProductId().equals("prod_2")
+                    && restored.get(0).getSource() == SavedProductSource.RECOMMEND
+                    && restored.get(1).getProductId().equals("prod_1")
+                    && restored.get(1).getSource() == SavedProductSource.CAMERA;
+        }));
     }
 
     private void prepareNewProduct(String productId, long savedCount) {

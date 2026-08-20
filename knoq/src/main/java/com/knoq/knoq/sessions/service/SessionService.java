@@ -8,6 +8,7 @@ import com.knoq.knoq.product.entity.Product;
 import com.knoq.knoq.product.repository.ProductRepository;
 import com.knoq.knoq.saved.entity.SavedProduct;
 import com.knoq.knoq.saved.repository.SavedProductRepository;
+import com.knoq.knoq.saved.service.SavedProductService;
 import com.knoq.knoq.sessions.client.KakaoApiClient;
 import com.knoq.knoq.sessions.dto.ConsentRequest;
 import com.knoq.knoq.sessions.dto.ConsentType;
@@ -62,6 +63,7 @@ public class SessionService {
     private final StoreRepository storeRepository;
     private final AccountRepository accountRepository;
     private final SavedProductRepository savedProductRepository;
+    private final SavedProductService savedProductService;
     private final ProductRepository productRepository;
     private final KakaoApiClient kakaoApiClient;
     private final ApplicationEventPublisher eventPublisher;
@@ -239,9 +241,13 @@ public class SessionService {
         Account account = accountRepository.findByKakaoUserId(kakaoUserId.get())
                 .orElseGet(() -> accountRepository.save(Account.of(generateAccountId(), kakaoUserId.get())));
 
+        List<Session> previousSessions = sessionRepository
+                .findByAccountIdOrderByCreatedAtDesc(account.getId()).stream()
+                .filter(previous -> !previous.getId().equals(session.getId()))
+                .toList();
+
         if (!hasCompletedOnboarding(session)) {
-            sessionRepository.findByAccountIdOrderByCreatedAtDesc(account.getId()).stream()
-                    .filter(previous -> !previous.getId().equals(session.getId()))
+            previousSessions.stream()
                     .filter(this::hasCompletedOnboarding)
                     .findFirst()
                     .ifPresent(previous -> {
@@ -251,6 +257,10 @@ public class SessionService {
         }
 
         session.linkAccount(account.getId());
+        savedProductService.restoreFromPreviousSessions(
+                session.getId(),
+                previousSessions.stream().map(Session::getId).toList()
+        );
 
         return new KakaoLoginResponse(
                 session.getStorageScope(),
