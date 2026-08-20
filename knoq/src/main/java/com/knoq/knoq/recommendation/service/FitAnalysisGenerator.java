@@ -40,6 +40,7 @@ public class FitAnalysisGenerator {
                     .retrieve()
                     .body(String.class);
 
+            log.info("OpenAI 제품 적합 분석 응답 원문: {}", rawResponse);
             return parseResponse(rawResponse);
         } catch (Exception e) {
             log.warn("제품 적합 분석 생성 실패, 규칙 기반 문장으로 대체합니다.", e);
@@ -66,9 +67,9 @@ public class FitAnalysisGenerator {
                 추측, 구매 강요, 제공되지 않은 사실은 포함하지 마라.
 
                 총 3문장만 생성하고 다음 순서를 반드시 지켜라.
-                1. summary: 고객의 라이프스타일 태그와 제품의 디자인이 왜 잘 어울리는지 1문장
-                2. reasons[0]: 제품 정보에 명시된 사이즈나 기능적 장점 1문장
-                3. reasons[1]: 제품 정보로 판단할 수 있는 사용 상황 1문장
+                1. summary: 제품과 가장 잘 맞는 라이프스타일 태그 1개와 실제 디자인 속성 1개를 연결한 1문장
+                2. reasons[0]: 입력에 명시된 사이즈·소재·구성·기능 중 구체적 장점 1문장
+                3. reasons[1]: 입력의 용도 또는 제품 설명에 명시된 사용 상황 1문장
 
                 작성 예시:
                 - 평소 선호하는 미니멀 스타일과 잘 어울립니다.
@@ -76,8 +77,13 @@ public class FitAnalysisGenerator {
                 - 출퇴근용으로 적합합니다.
 
                 각 문장은 45자 이내의 자연스러운 존댓말로 작성하라.
-                노트북 수납, 출퇴근용 등은 제품 정보에 근거가 있을 때만 사용하라.
-                어떤 구체적 기능이나 사용 상황도 판단할 수 없으면 제공된 소재·색상·크기 중 서로 겹치지 않는 근거를 사용하라.
+                여러 라이프스타일 태그를 '하면서도', '이면서' 등으로 한 문장에 나열하지 마라.
+                제품과 가장 관련성이 높은 태그 1개만 선택하라.
+                세 문장은 각각 입력에 실제로 적힌 서로 다른 제품 속성을 근거로 삼아라.
+                입력에 없는 '가벼운', '부드러운', '편안한 착용감', '내구성', '수납력'을 소재나 크기만 보고 추론하지 마라.
+                노트북 수납, 출퇴근용 등도 입력에 명시된 경우에만 사용하라.
+                구체적 기능이나 사용 상황이 없으면 이를 만들지 말고 입력된 색상·소재·크기를 객관적으로 설명하라.
+                제품명과 속성이 다른데도 다른 제품에 그대로 사용할 수 있는 범용적인 문장만 작성하지 마라.
                 세 문장에서 같은 표현이나 근거를 반복하지 마라.
                 cautions는 반드시 빈 배열로 반환하라.
 
@@ -100,6 +106,9 @@ public class FitAnalysisGenerator {
                 "카테고리: " + value(product.getCategory()) + "\n" +
                 "소재: " + value(product.getMaterial()) + "\n" +
                 "특징: " + value(product.getFeatures()) + "\n" +
+                "스타일 속성: " + product.getFeatureStyles() + "\n" +
+                "구성 속성: " + product.getFeatureCompositions() + "\n" +
+                "용도 속성: " + product.getFeatureUsages() + "\n" +
                 "색상: " + product.getColors() + "\n" +
                 "사이즈: " + product.getSizes() + "\n" +
                 "브랜드 설명: " + value(product.getBrandOfficialDescription()) + "\n" +
