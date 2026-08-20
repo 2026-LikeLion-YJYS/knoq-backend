@@ -1,6 +1,7 @@
 package com.knoq.knoq.needs.dto.response;
 
 import com.knoq.knoq.needs.entity.NeedsAnalysis;
+import com.knoq.knoq.needs.support.PreferredMaterialNormalizer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,7 +14,7 @@ public class NeedsAnalysisSummary {
     private String productCategory;
     @Schema(example = "블랙")
     private String preferredColor;
-    @Schema(example = "울")
+    @Schema(example = "Visetos", allowableValues = {"Visetos", "Leather", "Canvas", "Nylon"})
     private String preferredMaterial;
     @Schema(example = "M")
     private String preferredSize;
@@ -40,7 +41,7 @@ public class NeedsAnalysisSummary {
         return NeedsAnalysisSummary.builder()
                 .productCategory(productCategory)
                 .preferredColor(preferredColor)
-                .preferredMaterial(preferredMaterial)
+                .preferredMaterial(PreferredMaterialNormalizer.normalize(preferredMaterial))
                 .preferredSize(preferredSize)
                 .comment(comment)
                 .build();

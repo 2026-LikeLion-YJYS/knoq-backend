@@ -115,7 +115,7 @@ class NeedsAnalysisServiceTest {
                 "prod_needs_1",
                 "PD-NEEDS-1",
                 "울 니트 A",
-                "울",
+                "비세토스 모노그램 캔버스 + 나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -124,7 +124,7 @@ class NeedsAnalysisServiceTest {
                 "prod_needs_2",
                 "PD-NEEDS-2",
                 "울 니트 B",
-                "울",
+                "비세토스 모노그램 캔버스 + 나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -151,7 +151,7 @@ class NeedsAnalysisServiceTest {
                 needsAnalysisService.analyze(session.getId());
 
         assertThat(result.getProductCategory()).isEqualTo("상의");
-        assertThat(result.getPreferredMaterial()).isEqualTo("울");
+        assertThat(result.getPreferredMaterial()).isEqualTo("Visetos");
         assertThat(result.getPreferredColor()).isEqualTo("블랙");
         assertThat(result.getPreferredSize()).isEqualTo("M");
         assertThat(result.getComment()).isNotBlank();
@@ -166,7 +166,7 @@ class NeedsAnalysisServiceTest {
         assertThat(response.getAnalysis().getProductCategory())
                 .isEqualTo("상의");
         assertThat(response.getAnalysis().getPreferredMaterial())
-                .isEqualTo("울");
+                .isEqualTo("Visetos");
         assertThat(response.getAnalysis().getPreferredColor())
                 .isEqualTo("블랙");
         assertThat(response.getAnalysis().getPreferredSize())
@@ -184,7 +184,7 @@ class NeedsAnalysisServiceTest {
                 "prod_comment_1",
                 "PD-COMMENT-1",
                 "울 니트 A",
-                "울",
+                "나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -193,7 +193,7 @@ class NeedsAnalysisServiceTest {
                 "prod_comment_2",
                 "PD-COMMENT-2",
                 "울 니트 B",
-                "울",
+                "나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -217,7 +217,7 @@ class NeedsAnalysisServiceTest {
                 "prod_fallback_1",
                 "PD-FALLBACK-1",
                 "울 니트 A",
-                "울",
+                "나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -226,7 +226,7 @@ class NeedsAnalysisServiceTest {
                 "prod_fallback_2",
                 "PD-FALLBACK-2",
                 "울 니트 B",
-                "울",
+                "나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -241,7 +241,7 @@ class NeedsAnalysisServiceTest {
         NeedsAnalysisResultResponse result = needsAnalysisService.analyze(session.getId());
 
         assertThat(result.getComment())
-                .isEqualTo("저장하신 제품들은 주로 울 소재, 블랙 계열, M 사이즈를 선호하시는 경향이 있습니다.");
+                .isEqualTo("저장하신 제품들은 주로 Leather 소재, 블랙 계열, M 사이즈를 선호하시는 경향이 있습니다.");
     }
 
     @Test
@@ -251,7 +251,7 @@ class NeedsAnalysisServiceTest {
                 "prod_wool_1",
                 "PD-WOOL-1",
                 "울 제품 A",
-                "울",
+                "비세토스 캔버스",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -260,7 +260,7 @@ class NeedsAnalysisServiceTest {
                 "prod_wool_2",
                 "PD-WOOL-2",
                 "울 제품 B",
-                "울",
+                "비세토스 캔버스",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -269,7 +269,7 @@ class NeedsAnalysisServiceTest {
                 "prod_cotton_1",
                 "PD-COTTON-1",
                 "면 제품 A",
-                "면",
+                "나일론 100%",
                 List.of("L"),
                 List.of("화이트")
         );
@@ -278,7 +278,7 @@ class NeedsAnalysisServiceTest {
                 "prod_cotton_2",
                 "PD-COTTON-2",
                 "면 제품 B",
-                "면",
+                "나일론 100%",
                 List.of("L"),
                 List.of("화이트")
         );
@@ -298,7 +298,7 @@ class NeedsAnalysisServiceTest {
         NeedsAnalysisResultResponse firstResult =
                 needsAnalysisService.analyze(session.getId());
 
-        assertThat(firstResult.getPreferredMaterial()).isEqualTo("울");
+        assertThat(firstResult.getPreferredMaterial()).isEqualTo("Visetos");
         assertThat(firstResult.getPreferredColor()).isEqualTo("블랙");
         assertThat(firstResult.getPreferredSize()).isEqualTo("M");
         assertThat(needsAnalysisRepository.count()).isEqualTo(1);
@@ -311,7 +311,7 @@ class NeedsAnalysisServiceTest {
         NeedsAnalysisResultResponse secondResult =
                 needsAnalysisService.analyze(session.getId());
 
-        assertThat(secondResult.getPreferredMaterial()).isEqualTo("면");
+        assertThat(secondResult.getPreferredMaterial()).isEqualTo("Nylon");
         assertThat(secondResult.getPreferredColor()).isEqualTo("화이트");
         assertThat(secondResult.getPreferredSize()).isEqualTo("L");
 
@@ -322,7 +322,7 @@ class NeedsAnalysisServiceTest {
                         .findBySessionId(session.getId())
                         .orElseThrow()
                         .getPreferredMaterial()
-        ).isEqualTo("면");
+        ).isEqualTo("Nylon");
     }
 
     @Test

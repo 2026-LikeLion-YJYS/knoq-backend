@@ -7,6 +7,7 @@ import com.knoq.knoq.needs.dto.response.NeedsAnalysisResponse;
 import com.knoq.knoq.needs.dto.response.NeedsAnalysisResultResponse;
 import com.knoq.knoq.needs.entity.NeedsAnalysis;
 import com.knoq.knoq.needs.repository.NeedsAnalysisRepository;
+import com.knoq.knoq.needs.support.PreferredMaterialNormalizer;
 import com.knoq.knoq.saved.entity.SavedProduct;
 import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.sessions.service.SessionExpirationService;
@@ -57,7 +58,10 @@ public class NeedsAnalysisService {
         String category = NeedsAnalysisAggregator.mostFrequent(
                 attributes.stream().map(ProductAttributes::category).toList());
         String material = NeedsAnalysisAggregator.mostFrequent(
-                attributes.stream().map(ProductAttributes::material).toList());
+                attributes.stream()
+                        .map(ProductAttributes::material)
+                        .map(PreferredMaterialNormalizer::normalize)
+                        .toList());
         String color = NeedsAnalysisAggregator.mostFrequent(
                 attributes.stream().flatMap(a -> a.colors().stream()).toList());
         String size = NeedsAnalysisAggregator.mostFrequent(
