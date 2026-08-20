@@ -43,11 +43,15 @@ public class RecognitionService {
 
     // 80% 이상이면 단일 확정, 미만이면 후보 목록 (명세서 2.1 기준)
     private static final double CONFIDENCE_THRESHOLD = 0.8;
+    private static final double MIN_CONFIDENCE_MARGIN = 0.15;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // 8/13 폴백 정책: false로 내리면 확신도와 무관하게 항상 CANDIDATES
     @Value("${knoq.recognition.threshold-enabled:true}")
     private boolean thresholdEnabled;
+
+    @Value("${knoq.recognition.mock-fallback-enabled:false}")
+    private boolean mockFallbackEnabled;
 
     private final RecognitionRepository recognitionRepository;
     private final ProductRepository productRepository;
@@ -69,7 +73,10 @@ public class RecognitionService {
 
         MatchResult matchResult = tryVisionMatch(products, image);
         if (matchResult == null) {
-            // GPT 비전 호출 실패 또는 기준 사진이 등록된 제품이 없음 → mock 랜덤 매칭으로 폴백
+            if (!mockFallbackEnabled) {
+                throw new ApiException(ErrorCode.VISION_RECOGNITION_FAILED);
+            }
+            // 로컬 개발에서만 mock 랜덤 매칭을 허용한다.
             matchResult = mockMatch(products);
         }
 
@@ -89,7 +96,7 @@ public class RecognitionService {
         return new RecognitionResponse(recognition.getId(), matchResult.matchType(), candidateResponses);
     }
 
-    // GPT 비전으로 후보 결정. 실패하거나 기준 사진이 등록된 제품이 하나도 없으면 null 반환 → 호출부에서 mock 폴백
+    // GPT 비전으로 후보 결정. 실패하거나 기준 사진이 없으면 null을 반환한다.
     private MatchResult tryVisionMatch(List<Product> products, MultipartFile image) {
         List<Product> withReferenceImage = products.stream()
                 .filter(p -> p.getReferenceImages() != null && !p.getReferenceImages().isEmpty())
@@ -109,11 +116,11 @@ public class RecognitionService {
         try {
             matches = openAiVisionClient.recognize(capturedBase64, withReferenceImage);
         } catch (ApiException e) {
-            log.warn("GPT 비전 호출 자체가 실패해서 mock으로 폴백함");
+            log.warn("GPT 비전 호출이 실패했습니다.");
             return null;
         }
         if (matches == null || matches.isEmpty()) {
-            log.warn("GPT가 매치를 하나도 안 돌려줘서 mock으로 폴백함");
+            log.warn("GPT가 유효한 매치를 반환하지 않았습니다.");
             return null;
         }
         log.info("GPT가 준 원본 매치 목록: {} (참고 사진 등록된 제품 ID: {})", matches,
@@ -128,12 +135,17 @@ public class RecognitionService {
                 .sorted(Comparator.comparingDouble(OpenAiVisionClient.VisionMatch::confidence).reversed())
                 .toList();
         if (validMatches.isEmpty()) {
-            log.warn("GPT가 준 매치가 전부 등록 안 된(할루시네이션) productId라서 mock으로 폴백함: {}", matches);
+            log.warn("GPT가 반환한 productId가 모두 등록되지 않았습니다: {}", matches);
             return null;
         }
 
         double topConfidence = round(validMatches.get(0).confidence());
-        boolean isSingleMatch = thresholdEnabled && topConfidence >= CONFIDENCE_THRESHOLD;
+        double confidenceMargin = validMatches.size() > 1
+                ? topConfidence - round(validMatches.get(1).confidence())
+                : 0.0;
+        boolean isSingleMatch = thresholdEnabled
+                && topConfidence >= CONFIDENCE_THRESHOLD
+                && (productById.size() == 1 || confidenceMargin >= MIN_CONFIDENCE_MARGIN);
 
         List<OpenAiVisionClient.VisionMatch> chosenMatches = isSingleMatch
                 ? validMatches.subList(0, 1)

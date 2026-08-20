@@ -15,7 +15,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * OpenAI GPT-4o-mini 비전 기능으로 촬영 사진과 등록된 제품 기준 사진들을 비교해서
@@ -31,6 +35,9 @@ public class OpenAiVisionClient {
     @Value("${knoq.openai.api-key}")
     private String apiKey;
 
+    @Value("${knoq.openai.vision-model:gpt-4o-mini}")
+    private String visionModel;
+
     private final RestClient restClient = RestClient.create();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -38,32 +45,69 @@ public class OpenAiVisionClient {
 
     public List<VisionMatch> recognize(String capturedImageBase64, List<Product> referenceProducts) {
         try {
-            ObjectNode requestBody = buildRequestBody(capturedImageBase64, referenceProducts);
-            // Spring 쪽 기본 JSON 컨버터(Jackson 3, tools.jackson)가 우리가 만든 구버전 Jackson(com.fasterxml)
-            // ObjectNode를 제대로 직렬화 못 해서 빈 바디가 나가는 문제가 있었음.
-            // 그래서 우리 ObjectMapper로 직접 문자열로 변환해서 보내는 걸로 우회함 (버전 충돌 회피)
-            String requestBodyJson = objectMapper.writeValueAsString(requestBody);
+            // 1차는 제품별 대표 이미지 1장을 저해상도로 비교해 후보를 줄인다.
+            List<VisionMatch> firstPassMatches = requestMatches(
+                    capturedImageBase64, referenceProducts, "low", true, "1차 후보 선별");
 
-            String rawResponse = restClient.post()
-                    .uri(API_URL)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBodyJson)
-                    .retrieve()
-                    .body(String.class);
+            Map<String, Product> productById = referenceProducts.stream()
+                    .collect(Collectors.toMap(Product::getId, Function.identity()));
+            List<Product> shortlistedProducts = firstPassMatches.stream()
+                    .filter(match -> productById.containsKey(match.productId()))
+                    .sorted(Comparator.comparingDouble(VisionMatch::confidence).reversed())
+                    .map(match -> productById.get(match.productId()))
+                    .distinct()
+                    .limit(3)
+                    .toList();
 
-            log.info("OpenAI 인식 응답 원문: {}", rawResponse);
+            if (shortlistedProducts.isEmpty()) {
+                return List.of();
+            }
 
-            return parseMatches(rawResponse);
+            // 2차는 후보 3개의 모든 기준 이미지를 high로 보고 미세한 차이를 비교한다.
+            return requestMatches(
+                    capturedImageBase64, shortlistedProducts, "high", false, "2차 정밀 비교");
         } catch (Exception e) {
             log.error("OpenAI 비전 인식 실패", e);
             throw new ApiException(ErrorCode.VISION_RECOGNITION_FAILED);
         }
     }
 
-    private ObjectNode buildRequestBody(String capturedImageBase64, List<Product> referenceProducts) {
+    private List<VisionMatch> requestMatches(
+            String capturedImageBase64,
+            List<Product> referenceProducts,
+            String detail,
+            boolean representativeOnly,
+            String stage
+    ) throws Exception {
+        ObjectNode requestBody = buildRequestBody(
+                capturedImageBase64, referenceProducts, detail, representativeOnly);
+        // Spring 쪽 기본 JSON 컨버터(Jackson 3, tools.jackson)가 우리가 만든 구버전 Jackson(com.fasterxml)
+        // ObjectNode를 제대로 직렬화 못 해서 빈 바디가 나가는 문제가 있었음.
+        // 그래서 우리 ObjectMapper로 직접 문자열로 변환해서 보내는 걸로 우회함 (버전 충돌 회피)
+        String requestBodyJson = objectMapper.writeValueAsString(requestBody);
+
+        String rawResponse = restClient.post()
+                .uri(API_URL)
+                .header("Authorization", "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestBodyJson)
+                .retrieve()
+                .body(String.class);
+
+        log.info("OpenAI 인식 응답 원문 ({}): {}", stage, rawResponse);
+
+        return parseMatches(rawResponse);
+    }
+
+    ObjectNode buildRequestBody(
+            String capturedImageBase64,
+            List<Product> referenceProducts,
+            String detail,
+            boolean representativeOnly
+    ) {
         ObjectNode root = objectMapper.createObjectNode();
-        root.put("model", "gpt-4o-mini");
+        root.put("model", visionModel);
+        root.put("temperature", 0);
 
         ObjectNode responseFormat = objectMapper.createObjectNode();
         responseFormat.put("type", "json_object");
@@ -74,20 +118,31 @@ public class OpenAiVisionClient {
         userMessage.put("role", "user");
 
         ArrayNode content = objectMapper.createArrayNode();
-        content.add(textPart("아래는 매장에 있는 제품들의 참고 사진입니다. 각 사진 앞에 productId를 표시했습니다."));
+        content.add(textPart("""
+                아래는 매장 제품의 기준 사진입니다.
+                촬영 각도와 조명, 배경, 크기 차이는 무시하고 제품 자체를 비교하세요.
+                실루엣, 핸들 개수와 위치, 스트랩, 잠금장치, 포켓, 지퍼, 로고 패턴, 장식을 우선 비교하세요.
+                반드시 아래에 제공된 productId만 반환하세요.
+                """));
 
         for (Product product : referenceProducts) {
-            content.add(textPart("productId: " + product.getId()));
-            for (String referenceImage : product.getReferenceImages()) {
-                content.add(imagePart(referenceImage));
+            content.add(textPart(String.format(
+                    "productId: %s | name: %s | material: %s | colors: %s",
+                    product.getId(), product.getName(), product.getMaterial(), product.getColors())));
+            List<String> images = product.getReferenceImages();
+            int imageCount = representativeOnly ? Math.min(1, images.size()) : images.size();
+            for (int i = 0; i < imageCount; i++) {
+                content.add(imagePart(images.get(i), detail));
             }
         }
 
         content.add(textPart("다음은 고객이 방금 촬영한 사진입니다. 위 참고 사진들과 비교해서 가장 일치하는 제품을 찾아주세요."));
-        content.add(imagePart(capturedImageBase64));
+        content.add(imagePart(capturedImageBase64, detail));
         content.add(textPart(
                 "결과를 JSON으로만 응답하세요. 형식: {\"matches\": [{\"productId\": \"prod_1\", \"confidence\": 0.93}]} " +
-                        "confidence는 0~1 사이 값이고, 확신도 높은 순으로 최대 3개까지 정렬해서 반환하세요."
+                        "confidence는 시각적 일치도를 나타내는 0~1 사이 값입니다. " +
+                        "확신도가 높은 순으로 서로 다른 productId를 최대 3개까지 반환하세요. " +
+                        "시각적 근거가 약하면 임의로 높은 confidence를 주지 마세요."
         ));
 
         userMessage.set("content", content);
@@ -103,16 +158,21 @@ public class OpenAiVisionClient {
         return node;
     }
 
-    private ObjectNode imagePart(String base64) {
+    private ObjectNode imagePart(String base64, String detail) {
         ObjectNode node = objectMapper.createObjectNode();
         node.put("type", "image_url");
         ObjectNode imageUrl = objectMapper.createObjectNode();
-        imageUrl.put("url", "data:image/jpeg;base64," + base64);
-        // low detail = 512x512로 축소해서 봄, 이미지당 고정 ~85토큰만 씀 (원본 그대로 보내면 타일링 때문에
-        // 이미지 한 장에 수천 토큰까지 나가서 TPM 레이트리밋에 바로 걸림 — 실제로 요청 1번에 48만 토큰 나갔었음)
-        imageUrl.put("detail", "low");
+        imageUrl.put("url", "data:" + detectMediaType(base64) + ";base64," + base64);
+        imageUrl.put("detail", detail);
         node.set("image_url", imageUrl);
         return node;
+    }
+
+    String detectMediaType(String base64) {
+        if (base64.startsWith("iVBOR")) return "image/png";
+        if (base64.startsWith("UklGR")) return "image/webp";
+        if (base64.startsWith("R0lG")) return "image/gif";
+        return "image/jpeg";
     }
 
     private List<VisionMatch> parseMatches(String rawResponse) throws Exception {
