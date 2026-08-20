@@ -201,6 +201,44 @@ class SessionServiceTest {
 
         assertThat(response.storageScope()).isEqualTo(StorageScope.ACCOUNT);
         assertThat(response.accountId()).startsWith("acct_");
+        assertThat(response.nickname()).isNull();
+        assertThat(response.lifestyleTags()).isEmpty();
+        assertThat(response.onboardingCompleted()).isFalse();
+    }
+
+    @Test
+    void 재방문_카카오_계정은_최근_온보딩_정보를_복원한다() {
+        when(kakaoApiClient.getKakaoUserId("returning-token")).thenReturn(Optional.of(987654321L));
+
+        CreateSessionResponse previous = sessionService.createSession(
+                new CreateSessionRequest(testStore.getStoreCode())
+        );
+        sessionService.kakaoLogin(previous.sessionId(), new KakaoLoginRequest("returning-token"));
+        sessionService.setNickname(previous.sessionId(), new NicknameRequest("레몬토끼"));
+        sessionService.updateLifestyleTags(
+                previous.sessionId(),
+                new LifestyleTagsRequest(List.of(LifestyleTag.MINIMAL, LifestyleTag.CLASSIC))
+        );
+        sessionService.finishShopping(previous.sessionId());
+
+        CreateSessionResponse current = sessionService.createSession(
+                new CreateSessionRequest(testStore.getStoreCode())
+        );
+        KakaoLoginResponse response = sessionService.kakaoLogin(
+                current.sessionId(), new KakaoLoginRequest("returning-token")
+        );
+
+        assertThat(response.storageScope()).isEqualTo(StorageScope.ACCOUNT);
+        assertThat(response.accountId()).startsWith("acct_");
+        assertThat(response.nickname()).isEqualTo("레몬토끼");
+        assertThat(response.lifestyleTags())
+                .containsExactly(LifestyleTag.MINIMAL, LifestyleTag.CLASSIC);
+        assertThat(response.onboardingCompleted()).isTrue();
+
+        GetSessionResponse restored = sessionService.getSession(current.sessionId());
+        assertThat(restored.nickname()).isEqualTo("레몬토끼");
+        assertThat(restored.lifestyleTags())
+                .containsExactly(LifestyleTag.MINIMAL, LifestyleTag.CLASSIC);
     }
 
     @Test
@@ -214,6 +252,9 @@ class SessionServiceTest {
 
         assertThat(response.storageScope()).isEqualTo(StorageScope.PRIVATE);
         assertThat(response.accountId()).isNull();
+        assertThat(response.nickname()).isNull();
+        assertThat(response.lifestyleTags()).isEmpty();
+        assertThat(response.onboardingCompleted()).isFalse();
     }
 
     @Test

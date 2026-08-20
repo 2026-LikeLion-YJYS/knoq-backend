@@ -232,16 +232,40 @@ public class SessionService {
         if (kakaoUserId.isEmpty()) {
             // 카카오 인증 실패해도 에러로 막지 않고, PRIVATE로 되돌린 뒤 200으로 응답
             session.usePrivateStorage();
-            return new KakaoLoginResponse(StorageScope.PRIVATE, null);
+            return new KakaoLoginResponse(StorageScope.PRIVATE, null, null, List.of(), false);
         }
 
         // 이 카카오 계정으로 이미 만들어진 Account가 있으면 재사용, 없으면 새로 생성
         Account account = accountRepository.findByKakaoUserId(kakaoUserId.get())
                 .orElseGet(() -> accountRepository.save(Account.of(generateAccountId(), kakaoUserId.get())));
 
+        if (!hasCompletedOnboarding(session)) {
+            sessionRepository.findByAccountIdOrderByCreatedAtDesc(account.getId()).stream()
+                    .filter(previous -> !previous.getId().equals(session.getId()))
+                    .filter(this::hasCompletedOnboarding)
+                    .findFirst()
+                    .ifPresent(previous -> {
+                        session.updateNickname(previous.getNickname());
+                        session.updateLifestyleTags(previous.getLifestyleTags());
+                    });
+        }
+
         session.linkAccount(account.getId());
 
-        return new KakaoLoginResponse(session.getStorageScope(), account.getId());
+        return new KakaoLoginResponse(
+                session.getStorageScope(),
+                account.getId(),
+                session.getNickname(),
+                session.getLifestyleTags(),
+                hasCompletedOnboarding(session)
+        );
+    }
+
+    private boolean hasCompletedOnboarding(Session session) {
+        return session.getNickname() != null
+                && !session.getNickname().isBlank()
+                && session.getLifestyleTags() != null
+                && !session.getLifestyleTags().isEmpty();
     }
 
     @Transactional
