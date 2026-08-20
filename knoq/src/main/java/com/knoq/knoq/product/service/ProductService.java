@@ -38,7 +38,8 @@ public class ProductService {
                         featureImageUrl(product.getId(), "style.png"),
                         product.getFeatureCompositions(),
                         featureImageUrl(product.getId(), "composition.png"),
-                        product.getFeatureUsages()
+                        product.getFeatureUsages(),
+                        featureImageUrl(product.getId(), "usage.png")
                 ),
                 product.getPrice(),
                 product.getSizes(),

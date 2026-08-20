@@ -19,7 +19,10 @@ public record ProductFeaturesResponse(
         String compositionImageUrl,
 
         @Schema(example = "[\"Detachable leather strap\", \"Adjustable strap\"]")
-        List<String> usage
+        List<String> usage,
+
+        @Schema(example = "/demo/products/prod_1/usage.png", nullable = true)
+        String usageImageUrl
 ) {
     public ProductFeaturesResponse {
         style = List.copyOf(style);
