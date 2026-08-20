@@ -55,7 +55,9 @@ class ProductServiceTest {
         assertThat(response.name()).isEqualTo("테스트 니트");
         assertThat(response.material()).isEqualTo("울 100%");
         assertThat(response.features().style()).containsExactly("캐주얼");
+        assertThat(response.features().styleImageUrl()).isNull();
         assertThat(response.features().composition()).containsExactly("리브 조직");
+        assertThat(response.features().compositionImageUrl()).isNull();
         assertThat(response.features().usage()).containsExactly("데일리 착용");
         assertThat(response.price()).isEqualTo(89000L);
         assertThat(response.size()).containsExactly("S", "M", "L");
@@ -86,6 +88,24 @@ class ProductServiceTest {
         assertThat(response.features().usage()).isEmpty();
         assertThat(response.thumbnailUrl()).isNull();
         assertThat(response.images()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("데모 제품은 스타일과 구성 이미지 URL을 반환한다")
+    void getProductDetail_demoProduct_returnsFeatureImageUrls() {
+        Product product = Product.of(
+                "prod_1", "PD-DEMO-1", "데모 가방", "가죽", "특징", 100_000L,
+                List.of("L"), List.of("Cognac"), "/demo/products/prod_1/front.png",
+                "브랜드 설명", "AI 설명"
+        );
+        when(productRepository.findById("prod_1")).thenReturn(Optional.of(product));
+
+        ProductDetailResponse response = productService.getProductDetail("prod_1");
+
+        assertThat(response.features().styleImageUrl())
+                .isEqualTo("/demo/products/prod_1/style.png");
+        assertThat(response.features().compositionImageUrl())
+                .isEqualTo("/demo/products/prod_1/composition.png");
     }
 
     @Test

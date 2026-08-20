@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.util.Base64;
@@ -33,7 +34,9 @@ public class ProductService {
                 orNoInfo(product.getMaterial()),
                 new ProductFeaturesResponse(
                         product.getFeatureStyles(),
+                        featureImageUrl(product.getId(), "style.png"),
                         product.getFeatureCompositions(),
+                        featureImageUrl(product.getId(), "composition.png"),
                         product.getFeatureUsages()
                 ),
                 product.getPrice(),
@@ -62,5 +65,12 @@ public class ProductService {
 
     private String orNoInfo(String value) {
         return (value == null || value.isBlank()) ? NO_INFO : value;
+    }
+
+    private String featureImageUrl(String productId, String fileName) {
+        String relativePath = "demo/products/" + productId + "/" + fileName;
+        return new ClassPathResource("static/" + relativePath).exists()
+                ? "/" + relativePath
+                : null;
     }
 }
