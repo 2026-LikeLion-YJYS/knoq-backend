@@ -35,7 +35,8 @@ public class ProductService {
                 product.getSizes(),
                 product.getColors(),
                 product.getThumbnailUrl(),
-                product.getAiGeneratedDescription() // 없으면 그냥 null
+                product.getReferenceImages(),
+                product.getAiGeneratedDescription()
         );
     }
 

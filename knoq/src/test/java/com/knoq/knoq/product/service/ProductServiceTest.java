@@ -37,6 +37,9 @@ class ProductServiceTest {
                 List.of("S", "M", "L"), List.of("블랙", "베이지"), "https://example.com/thumb.jpg",
                 "브랜드 공식 설명입니다.", null
         );
+        product.addReferenceImage("front-base64");
+        product.addReferenceImage("side-base64");
+        product.addReferenceImage("top-base64");
         when(productRepository.findById("prod_test1")).thenReturn(Optional.of(product));
 
         // when
@@ -51,11 +54,12 @@ class ProductServiceTest {
         assertThat(response.size()).containsExactly("S", "M", "L");
         assertThat(response.color()).containsExactly("블랙", "베이지");
         assertThat(response.thumbnailUrl()).isEqualTo("https://example.com/thumb.jpg");
+        assertThat(response.images()).containsExactly("front-base64", "side-base64", "top-base64");
         assertThat(response.aiGenerated()).isNull();
     }
 
     @Test
-    @DisplayName("material과 features가 비어있으면 '정보 없음'으로 대체된다")
+    @DisplayName("material, features가 비어있으면 '정보 없음'으로 대체된다")
     void getProductDetail_missingInfo_returnsDefaultText() {
         // given
         Product product = Product.of(
@@ -71,6 +75,8 @@ class ProductServiceTest {
         // then
         assertThat(response.material()).isEqualTo("정보 없음");
         assertThat(response.features()).isEqualTo("정보 없음");
+        assertThat(response.thumbnailUrl()).isNull();
+        assertThat(response.images()).isEmpty();
     }
 
     @Test

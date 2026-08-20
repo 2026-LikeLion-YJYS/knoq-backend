@@ -14,7 +14,7 @@ public record ProductDetailResponse(
         @Schema(example = "비세토스 모노그램 캔버스 + 나파 가죽")
         String material,
 
-        @Schema(example = "길이 조절 및 탈부착 가능한 가죽 스트랩, 로고 락 클로저, 내부 슬립 포켓, 지퍼 수납공간")
+        @Schema(example = "길이 조절 및 탈부착 가능한 가죽 스트랩, 내부 슬립 포켓")
         String features,
 
         @Schema(example = "1690000")
@@ -29,6 +29,10 @@ public record ProductDetailResponse(
         @Schema(example = "/demo/products/prod_1/front.png")
         String thumbnailUrl,
 
+        @Schema(description = "정면, 측면, 윗면 순서의 Base64 이미지 목록. 등록된 이미지가 없으면 빈 배열")
+        List<String> images,
+
         @Schema(example = "클래식한 모노그램과 가죽 트림이 돋보이는 포멀한 호보백입니다.")
         String aiGenerated
-) {}
+) {
+}

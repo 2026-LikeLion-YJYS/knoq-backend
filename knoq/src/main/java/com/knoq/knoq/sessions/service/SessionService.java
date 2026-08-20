@@ -41,7 +41,6 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class SessionService {
-
     private static final String ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -90,6 +89,7 @@ public class SessionService {
 
     @Transactional(readOnly = true)
     public GetSessionResponse getSession(String sessionId) {
+        // FR-401은 폴링 성격의 조회이므로 유효성만 확인하고 만료시간은 갱신하지 않는다.
         Session session = sessionExpirationService.getValidSession(sessionId);
 
         // storeId로 매장 이름 찾기
@@ -99,6 +99,9 @@ public class SessionService {
         return new GetSessionResponse(
                 session.getId(),
                 store.getStoreName(),
+                session.getStorageScope(),
+                session.getNickname(),
+                session.getLifestyleTags(),
                 session.getExpiresAt()
         );
     }
