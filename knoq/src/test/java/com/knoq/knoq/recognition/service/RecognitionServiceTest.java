@@ -119,7 +119,7 @@ class RecognitionServiceTest {
     }
 
     @Test
-    void 후보_안에_있는_제품으로_확정해도_보관함에_자동_저장하지_않는다() {
+    void 후보_안에_있는_제품으로_확정하면_보관함에_자동_저장한다() {
         saveProduct("prod_a", "PD-A", "제품A", List.of());
         RecognitionResponse recognized = recognitionService.recognize(sessionId, fakeImage());
         String productId = recognized.candidates().get(0).productId();
@@ -129,7 +129,11 @@ class RecognitionServiceTest {
 
         assertThat(response.productId()).isEqualTo(productId);
         assertThat(response.confirmed()).isTrue();
-        assertThat(savedProductRepository.countBySessionId(sessionId)).isZero();
+        assertThat(savedProductRepository.findBySessionIdAndProductId(sessionId, productId))
+                .isPresent()
+                .get()
+                .extracting(savedProduct -> savedProduct.getSource().name())
+                .isEqualTo("CAMERA");
     }
 
     @Test
@@ -151,6 +155,7 @@ class RecognitionServiceTest {
                 sessionId, recognized.recognitionId(), new ConfirmRecognitionRequest("prod_a", false));
 
         assertThat(response).isNull();
+        assertThat(savedProductRepository.countBySessionId(sessionId)).isZero();
     }
 
     @Test
