@@ -52,7 +52,7 @@ knoq:
 
   openai:
     api-key: ${OPENAI_API_KEY:dummy-key-for-local}
-    vision-model: ${OPENAI_VISION_MODEL:gpt-4o-mini}
+    vision-model: ${OPENAI_VISION_MODEL=gpt-5.6-terra}
 
 ---
 spring:

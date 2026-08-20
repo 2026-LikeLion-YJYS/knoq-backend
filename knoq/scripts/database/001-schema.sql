@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS needs_analysis (
     preferred_size VARCHAR(50) NULL,
     comment VARCHAR(500) NULL,
     analyzed_at DATETIME(6) NOT NULL,
+    user_edited TINYINT(1) NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     CONSTRAINT uk_needs_analysis_session UNIQUE (session_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -326,6 +326,42 @@ class NeedsAnalysisServiceTest {
     }
 
     @Test
+    @DisplayName("사용자가 직접 수정한 네 항목은 재분석해도 바뀌지 않고 코멘트만 새로 생성된다")
+    void analyze_keeps_user_edited_fields_and_only_regenerates_comment() {
+        Product productA = createProduct(
+                "prod_edit_1", "PD-EDIT-1", "가방 A", "비세토스 캔버스", List.of("M"), List.of("블랙")
+        );
+        Product productB = createProduct(
+                "prod_edit_2", "PD-EDIT-2", "가방 B", "비세토스 캔버스", List.of("M"), List.of("블랙")
+        );
+        productRepository.saveAll(List.of(productA, productB));
+        saveProduct(productA, SavedProductSource.CAMERA);
+        saveProduct(productB, SavedProductSource.RECOMMEND);
+
+        needsAnalysisService.analyze(session.getId()); // 최초 자동 분석
+
+        NeedsAnalysisResultResponse edited = needsAnalysisService.updateAnalysis(
+                session.getId(),
+                new UpdateNeedsAnalysisRequest("토트백 / 쇼퍼백", "Black · Cognac", "Leather", "Medium · Large")
+        );
+        LocalDateTime editedAnalyzedAt = edited.getAnalyzedAt();
+
+        NeedsAnalysisResultResponse reanalyzed = needsAnalysisService.analyze(session.getId());
+
+        // 사용자가 고른 네 항목은 재분석 이후에도 그대로 유지됨 (저장된 제품 속성으로 재집계되지 않음)
+        assertThat(reanalyzed.getProductCategory()).isEqualTo("토트백 / 쇼퍼백");
+        assertThat(reanalyzed.getPreferredColor()).isEqualTo("Black · Cognac");
+        assertThat(reanalyzed.getPreferredMaterial()).isEqualTo("Leather");
+        assertThat(reanalyzed.getPreferredSize()).isEqualTo("Medium · Large");
+        // comment만 그 네 항목을 기준으로 새로 생성됨
+        assertThat(reanalyzed.getComment()).isEqualTo(
+                "저장하신 제품들은 주로 Leather 소재, Black · Cognac 계열, Medium · Large 사이즈를 선호하시는 경향이 있습니다."
+        );
+        assertThat(reanalyzed.getAnalyzedAt()).isAfter(editedAnalyzedAt);
+        assertThat(needsAnalysisRepository.count()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("사용자가 니즈 항목을 수정하면 결과가 저장되고 기존 코멘트와 분석 시각은 유지된다")
     void update_analysis_saves_user_selections_and_preserves_analysis_metadata() {
         NeedsAnalysis needsAnalysis = NeedsAnalysis.of(session.getId());

@@ -52,6 +52,21 @@ public class NeedsAnalysisService {
             throw new ApiException(ErrorCode.NEEDS_ANALYSIS_NOT_ENOUGH_SAVED_PRODUCTS);
         }
 
+        NeedsAnalysis needsAnalysis = needsAnalysisRepository.findBySessionId(sessionId)
+                .orElseGet(() -> NeedsAnalysis.of(sessionId));
+
+        // 사용자가 PUT으로 네 항목을 이미 직접 수정했다면, 재분석해도 그 값은 그대로 두고 comment만 새로 만듦
+        if (needsAnalysis.isUserEdited()) {
+            String comment = NeedsAnalysisAggregator.buildComment(
+                    needsAnalysis.getPreferredColor(),
+                    needsAnalysis.getPreferredMaterial(),
+                    needsAnalysis.getPreferredSize()
+            );
+            needsAnalysis.updateComment(comment);
+            needsAnalysisRepository.save(needsAnalysis);
+            return NeedsAnalysisResultResponse.from(needsAnalysis);
+        }
+
         List<String> productIds = savedProducts.stream().map(SavedProduct::getProductId).toList();
         List<ProductAttributes> attributes = productAttributeProvider.getAttributes(productIds);
 
@@ -72,8 +87,6 @@ public class NeedsAnalysisService {
                 ? templateComment
                 : generatedComment;
 
-        NeedsAnalysis needsAnalysis = needsAnalysisRepository.findBySessionId(sessionId)
-                .orElseGet(() -> NeedsAnalysis.of(sessionId));
         needsAnalysis.updateResult(category, color, material, size, comment);
         needsAnalysisRepository.save(needsAnalysis);
 
