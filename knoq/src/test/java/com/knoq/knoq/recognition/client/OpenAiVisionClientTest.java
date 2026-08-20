@@ -32,8 +32,8 @@ class OpenAiVisionClientTest {
     }
 
     @Test
-    @DisplayName("1차 선별은 제품별 대표 사진 1장과 촬영 사진만 low로 보낸다")
-    void firstPass_usesOneReferenceImageWithLowDetail() {
+    @DisplayName("1차 선별은 대표 사진은 low, 작게 찍힐 수 있는 촬영 사진은 high로 보낸다")
+    void firstPass_usesLowReferenceAndHighCapture() {
         ObjectNode body = client.buildRequestBody(
                 "captured-jpeg", List.of(product), "low", true);
 
@@ -41,9 +41,10 @@ class OpenAiVisionClientTest {
         assertThat(body.has("temperature")).isFalse();
         List<JsonNode> imageParts = imageParts(body);
         assertThat(imageParts).hasSize(2);
-        assertThat(imageParts)
-                .allSatisfy(part -> assertThat(part.path("image_url").path("detail").asText())
-                        .isEqualTo("low"));
+        assertThat(imageParts.get(0).path("image_url").path("detail").asText())
+                .isEqualTo("low");
+        assertThat(imageParts.get(1).path("image_url").path("detail").asText())
+                .isEqualTo("high");
     }
 
     @Test

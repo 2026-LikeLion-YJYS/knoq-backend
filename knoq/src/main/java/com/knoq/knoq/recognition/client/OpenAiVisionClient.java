@@ -146,8 +146,14 @@ public class OpenAiVisionClient {
             }
         }
 
-        content.add(textPart("다음은 고객이 방금 촬영한 사진입니다. 위 참고 사진들과 비교해서 가장 일치하는 제품을 찾아주세요."));
-        content.add(imagePart(capturedImageBase64, detail));
+        content.add(textPart("""
+                다음은 고객이 방금 촬영한 사진입니다.
+                제품이 화면의 일부분만 차지해도 제품 영역을 중심으로 확대해 형태와 장식을 비교하세요.
+                위 참고 사진들과 비교해서 가장 일치하는 제품을 찾아주세요.
+                """));
+        // 1차 선별에서 기준 사진은 low로 절약하더라도, 작게 찍힌 제품의
+        // 로고·포켓·스트랩을 놓치지 않도록 고객 촬영본은 항상 high로 보낸다.
+        content.add(imagePart(capturedImageBase64, "high"));
         content.add(textPart(
                 "결과를 JSON으로만 응답하세요. 형식: {\"matches\": [{\"productId\": \"prod_1\", \"confidence\": 0.93}]} " +
                         "confidence는 시각적 일치도를 나타내는 0~1 사이 값입니다. " +
