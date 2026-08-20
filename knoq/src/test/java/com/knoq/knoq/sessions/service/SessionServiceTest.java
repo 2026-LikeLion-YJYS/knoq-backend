@@ -271,6 +271,7 @@ class SessionServiceTest {
 
         // 방금 새로 만들어졌던 세션은 정리됨(탐색 아카이브에 하루 1개만 남도록)
         assertThat(sessionRepository.findById(current.sessionId())).isEmpty();
+        assertThat(savedProductRepository.findBySessionIdOrderBySavedAtDesc(current.sessionId())).isEmpty();
 
         GetSessionResponse restored = sessionService.getSession(response.sessionId());
         assertThat(restored.nickname()).isEqualTo("레몬토끼");
@@ -286,7 +287,7 @@ class SessionServiceTest {
     }
 
     @Test
-    void 같은_날이어도_다른_매장이면_온보딩을_다시_보여주되_닉네임은_추천값으로_채워준다() {
+    void 같은_날_다른_매장으로_재로그인해도_오늘_세션을_재사용하고_온보딩을_건너뛴다() {
         when(kakaoApiClient.getKakaoUserId("multi-store-token")).thenReturn(Optional.of(555666777L));
 
         CreateSessionResponse firstStoreSession = sessionService.createSession(
@@ -309,15 +310,17 @@ class SessionServiceTest {
                 secondStoreSession.sessionId(), new KakaoLoginRequest("multi-store-token")
         );
 
-        // 다른 매장이라 세션은 그대로, 온보딩도 다시 보여줘야 함
-        assertThat(response.sessionId()).isEqualTo(secondStoreSession.sessionId());
-        assertThat(response.onboardingCompleted()).isFalse();
-        assertThat(response.lifestyleTags()).isEmpty();
-        // 닉네임만 이전에 쓰던 값으로 미리 채워줌(자동 확정은 아님)
+        assertThat(response.sessionId()).isEqualTo(firstStoreSession.sessionId());
+        assertThat(response.sessionToken()).isEqualTo(firstStoreSession.sessionToken());
+        assertThat(response.onboardingCompleted()).isTrue();
+        assertThat(response.lifestyleTags()).containsExactly(LifestyleTag.CASUAL);
         assertThat(response.nickname()).isEqualTo("구름토끼");
-
-        GetSessionResponse notYetOnboarded = sessionService.getSession(secondStoreSession.sessionId());
-        assertThat(notYetOnboarded.nickname()).isNull();
+        assertThat(sessionRepository.findById(secondStoreSession.sessionId())).isEmpty();
+        assertThat(sessionRepository.findById(firstStoreSession.sessionId()))
+                .isPresent()
+                .get()
+                .extracting(Session::getStoreId)
+                .isEqualTo(otherStore.getId());
     }
 
     @Test

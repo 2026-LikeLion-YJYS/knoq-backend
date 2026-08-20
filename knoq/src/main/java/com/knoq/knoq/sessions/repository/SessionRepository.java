@@ -11,9 +11,9 @@ public interface SessionRepository extends JpaRepository<Session, String> {
 
     List<Session> findByAccountIdOrderByCreatedAtDesc(String accountId);
 
-    // 탐색 아카이브 하루 1개 정책: 같은 계정 + 같은 매장으로 오늘(자정 이후) 만들어진 세션이 있는지 조회
-    Optional<Session> findFirstByAccountIdAndStoreIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
-            String accountId, Long storeId, LocalDateTime createdAtFrom
+    // 탐색 아카이브 하루 1개 정책: 매장과 무관하게 같은 계정의 오늘 세션을 조회
+    Optional<Session> findFirstByAccountIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+            String accountId, LocalDateTime createdAtFrom
     );
 
     // 온보딩 닉네임 미리 채우기용: 매장 상관없이 이 계정이 마지막으로 쓴 닉네임을 찾음

@@ -70,30 +70,33 @@ class SessionArchiveServiceTest {
     }
 
     @Test
-    void 같은_계정의_방문과_저장제품을_최근순으로_반환한다() {
+    void 같은_계정으로_같은_날_다른_매장을_방문해도_아카이브는_하나만_반환한다() {
         when(kakaoApiClient.getKakaoUserId("same-account"))
                 .thenReturn(Optional.of(12345L));
         Store otherStore = storeRepository.save(
                 Store.of("ARCHIVE-OTHER-" + UUID.randomUUID().toString().substring(0, 8), "다른 아카이브 매장")
         );
 
-        // 하루 1개 정책 때문에 같은 매장 재방문은 세션이 합쳐지므로, 서로 다른 매장 방문 2건으로 검증
         CreateSessionResponse previous = createAccountSession(store);
         savedProductService.saveFromCamera(previous.sessionId(), productId);
         sessionService.finishShopping(previous.sessionId());
 
-        CreateSessionResponse current = createAccountSession(otherStore);
+        CreateSessionResponse fresh = sessionService.createSession(
+                new CreateSessionRequest(otherStore.getStoreCode())
+        );
+        var loginResponse = sessionService.kakaoLogin(
+                fresh.sessionId(), new KakaoLoginRequest("same-account")
+        );
 
-        SessionArchiveResponse response = sessionService.getArchive(current.sessionId());
+        SessionArchiveResponse response = sessionService.getArchive(loginResponse.sessionId());
 
-        assertThat(response.count()).isEqualTo(2);
+        assertThat(response.count()).isEqualTo(1);
         assertThat(response.visits()).extracting(SessionArchiveResponse.Visit::sessionId)
-                .containsExactly(current.sessionId(), previous.sessionId());
+                .containsExactly(previous.sessionId());
         assertThat(response.visits().get(0).isCurrent()).isTrue();
-        assertThat(response.visits().get(1).isCurrent()).isFalse();
-        assertThat(response.visits().get(1).products()).hasSize(1);
-        assertThat(response.visits().get(1).products().get(0).name()).isEqualTo("테스트 가방");
-        assertThat(response.visits().get(1).products().get(0).thumbnailUrl())
+        assertThat(response.visits().get(0).products()).hasSize(1);
+        assertThat(response.visits().get(0).products().get(0).name()).isEqualTo("테스트 가방");
+        assertThat(response.visits().get(0).products().get(0).thumbnailUrl())
                 .isEqualTo("/products/archive.png");
     }
 

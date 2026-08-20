@@ -247,11 +247,11 @@ public class SessionService {
         Account account = accountRepository.findByKakaoUserId(kakaoUserId.get())
                 .orElseGet(() -> accountRepository.save(Account.of(generateAccountId(), kakaoUserId.get())));
 
-        // 탐색 아카이브 하루 1개 정책: 같은 계정 + 같은 매장으로 "오늘"(한국시간 자정 기준) 이미 로그인한
+        // 탐색 아카이브 하루 1개 정책: 매장과 무관하게 같은 계정으로 "오늘"(한국시간 자정 기준) 이미 로그인한
         // 세션이 있으면 새 세션을 만들지 않고 그 세션으로 갈아탐 (온보딩도 다시 안 보여줌)
         Optional<Session> todaySession = sessionRepository
-                .findFirstByAccountIdAndStoreIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
-                        account.getId(), session.getStoreId(), todayStart()
+                .findFirstByAccountIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        account.getId(), todayStart()
                 )
                 .filter(existing -> !existing.getId().equals(session.getId()));
 
@@ -262,7 +262,7 @@ public class SessionService {
         return startFirstLoginOfDay(session, account);
     }
 
-    // 오늘 이 매장에서의 두 번째 이상 로그인: 기존 세션을 재사용하고, 방금 새로 만들어졌던 세션은 정리
+    // 오늘의 두 번째 이상 로그인: 기존 일일 세션을 재사용하고, 방금 새로 만들어졌던 세션은 정리
     private KakaoLoginResponse reuseTodaySession(Session freshSession, Session todaySession, Account account) {
         // finishShopping()으로 이미 종료(즉시 만료)됐을 수 있어서, restoreFromPreviousSessions가 내부적으로
         // 유효성 검사를 하기 전에 먼저 만료시간을 되살려놔야 함
@@ -270,6 +270,10 @@ public class SessionService {
 
         // 방금 만들어진 세션 쪽에 저장된 게 있었다면(로그인 전에 잠깐 둘러본 경우) 재사용할 세션으로 옮겨줌
         savedProductService.restoreFromPreviousSessions(todaySession.getId(), List.of(freshSession.getId()));
+        // 임시 세션을 지우기 전에 옮겨진 저장 제품 원본도 정리해 orphan row를 남기지 않는다.
+        savedProductService.deleteAll(freshSession.getId());
+        // 다른 매장으로 재진입한 경우 오늘 세션의 현재 매장을 갱신한다.
+        todaySession.updateStore(freshSession.getStoreId());
         sessionRepository.delete(freshSession);
 
         return new KakaoLoginResponse(
@@ -283,7 +287,7 @@ public class SessionService {
         );
     }
 
-    // 오늘 이 매장에서의 첫 로그인: 닉네임은 이전에 쓰던 값을 "추천값"으로만 채워주고(자동 확정 아님),
+    // 오늘의 첫 로그인: 닉네임은 이전에 쓰던 값을 "추천값"으로만 채워주고(자동 확정 아님),
     // 라이프스타일 태그는 매일 새로 고르게 하므로 복원하지 않음
     private KakaoLoginResponse startFirstLoginOfDay(Session session, Account account) {
         List<Session> previousSessions = sessionRepository
