@@ -11,10 +11,13 @@ import com.knoq.knoq.sessions.dto.LifestyleTagsRequest;
 import com.knoq.knoq.sessions.dto.LifestyleTagsResponse;
 import com.knoq.knoq.sessions.dto.NicknameRequest;
 import com.knoq.knoq.sessions.dto.NicknameResponse;
+import com.knoq.knoq.sessions.dto.SessionArchiveResponse;
 import com.knoq.knoq.sessions.dto.StorageScopeRequest;
 import com.knoq.knoq.sessions.dto.StorageScopeResponse;
 import com.knoq.knoq.sessions.service.SessionService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +55,23 @@ public class SessionController {
     ) {
         GetSessionResponse response = sessionService.getSession(sessionId);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "탐색 아카이브 조회",
+            description = "ACCOUNT 로그인 상태에서 같은 고객의 방문 기록과 저장 제품을 최근순으로 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "탐색 아카이브 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "ACCOUNT 로그인이 필요함"),
+            @ApiResponse(responseCode = "404", description = "세션을 찾을 수 없음"),
+            @ApiResponse(responseCode = "410", description = "현재 세션이 만료됨")
+    })
+    @GetMapping("/{sessionId}/archive")
+    public ResponseEntity<SessionArchiveResponse> getArchive(
+            @PathVariable String sessionId
+    ) {
+        return ResponseEntity.ok(sessionService.getArchive(sessionId));
     }
 
     @Operation(summary = "약관 동의")

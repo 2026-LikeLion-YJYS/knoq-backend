@@ -13,6 +13,10 @@ public interface SavedProductRepository
             String sessionId
     );
 
+    List<SavedProduct> findBySessionIdInOrderBySavedAtDesc(
+            List<String> sessionIds
+    );
+
     Optional<SavedProduct> findBySessionIdAndProductId(
             String sessionId,
             String productId
