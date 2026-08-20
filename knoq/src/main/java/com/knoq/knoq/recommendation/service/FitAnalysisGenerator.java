@@ -50,7 +50,7 @@ public class FitAnalysisGenerator {
     private ObjectNode buildRequestBody(List<LifestyleTag> lifestyleTags, Product product) {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", "gpt-4o-mini");
-        root.put("max_tokens", 400);
+        root.put("max_tokens", 250);
 
         ObjectNode responseFormat = objectMapper.createObjectNode();
         responseFormat.put("type", "json_object");
@@ -59,12 +59,22 @@ public class FitAnalysisGenerator {
         ArrayNode messages = objectMapper.createArrayNode();
         ObjectNode systemMessage = objectMapper.createObjectNode();
         systemMessage.put("role", "system");
-        systemMessage.put("content",
-                "너는 매장 제품 적합 분석 어시스턴트다. " +
-                        "제공된 라이프스타일 태그와 제품 속성만 비교해 한국어 존댓말로 설명해라. " +
-                        "추측, 구매 강요, 제공되지 않은 사실은 포함하지 마라. " +
-                        "반드시 JSON 객체만 반환하고 필드는 summary 문자열, reasons 문자열 배열, cautions 문자열 배열만 사용해라."
-        );
+        systemMessage.put("content", """
+                너는 럭셔리 패션 쇼핑 서비스 KNOQ의 라이프스타일 적합 분석 어시스턴트다.
+                제공된 라이프스타일 태그와 제품 속성만 비교해 한국어 존댓말로 설명해라.
+                추측, 구매 강요, 제공되지 않은 사실은 포함하지 마라.
+
+                읽기 쉬운 짧은 단락으로 나누기 위해 다음 출력 규칙을 지켜라.
+                - summary: 결론만 담은 1문장, 45자 이내
+                - reasons: 서로 다른 적합 이유 2~3개, 각 항목은 독립된 1문장이고 60자 이내
+                - cautions: 확인할 점 1~2개, 각 항목은 독립된 1문장이고 60자 이내
+                - 한 항목 안에 여러 이유를 길게 이어 쓰지 마라.
+                - summary, reasons, cautions 사이에 같은 내용을 반복하지 마라.
+                - 배열의 각 항목은 화면에서 별도 단락으로 표시될 완결된 문장이어야 한다.
+
+                반드시 JSON 객체만 반환하고 summary 문자열, reasons 문자열 배열,
+                cautions 문자열 배열 외의 필드는 사용하지 마라.
+                """);
         messages.add(systemMessage);
 
         ObjectNode userMessage = objectMapper.createObjectNode();
@@ -85,7 +95,7 @@ public class FitAnalysisGenerator {
                 "사이즈: " + product.getSizes() + "\n" +
                 "브랜드 설명: " + value(product.getBrandOfficialDescription()) + "\n" +
                 "AI 제품 설명: " + value(product.getAiGeneratedDescription()) + "\n" +
-                "위 정보만 근거로 핵심 요약 1문장, 적합 이유, 주의점을 작성해줘.";
+                "위 정보만 근거로 짧은 요약 1문장과 서로 겹치지 않는 적합 이유 2~3개, 확인할 점 1~2개를 작성해줘.";
     }
 
     private FitAnalysisResponse parseResponse(String rawResponse) throws Exception {
