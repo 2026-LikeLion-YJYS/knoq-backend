@@ -25,13 +25,15 @@ public class NeedsCommentGenerator {
 
     public String generate(String category, String color, String material, String size) {
         try {
-            ObjectNode requestBody = buildRequestBody(category, color, material, size);
+            String requestBodyJson = objectMapper.writeValueAsString(
+                    buildRequestBody(category, color, material, size)
+            );
 
             String rawResponse = restClient.post()
                     .uri(API_URL)
                     .header("Authorization", "Bearer " + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
+                    .body(requestBodyJson)
                     .retrieve()
                     .body(String.class);
 
