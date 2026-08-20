@@ -73,12 +73,16 @@ class SessionArchiveServiceTest {
     void 같은_계정의_방문과_저장제품을_최근순으로_반환한다() {
         when(kakaoApiClient.getKakaoUserId("same-account"))
                 .thenReturn(Optional.of(12345L));
+        Store otherStore = storeRepository.save(
+                Store.of("ARCHIVE-OTHER-" + UUID.randomUUID().toString().substring(0, 8), "다른 아카이브 매장")
+        );
 
-        CreateSessionResponse previous = createAccountSession();
+        // 하루 1개 정책 때문에 같은 매장 재방문은 세션이 합쳐지므로, 서로 다른 매장 방문 2건으로 검증
+        CreateSessionResponse previous = createAccountSession(store);
         savedProductService.saveFromCamera(previous.sessionId(), productId);
         sessionService.finishShopping(previous.sessionId());
 
-        CreateSessionResponse current = createAccountSession();
+        CreateSessionResponse current = createAccountSession(otherStore);
 
         SessionArchiveResponse response = sessionService.getArchive(current.sessionId());
 
@@ -94,6 +98,28 @@ class SessionArchiveServiceTest {
     }
 
     @Test
+    void 같은_매장을_같은_날_재방문하면_아카이브에_하나로만_남는다() {
+        when(kakaoApiClient.getKakaoUserId("same-account-same-store"))
+                .thenReturn(Optional.of(67890L));
+
+        CreateSessionResponse first = sessionService.createSession(new CreateSessionRequest(store.getStoreCode()));
+        sessionService.kakaoLogin(first.sessionId(), new KakaoLoginRequest("same-account-same-store"));
+        savedProductService.saveFromCamera(first.sessionId(), productId);
+        sessionService.finishShopping(first.sessionId());
+
+        CreateSessionResponse second = sessionService.createSession(new CreateSessionRequest(store.getStoreCode()));
+        var loginResponse = sessionService.kakaoLogin(
+                second.sessionId(), new KakaoLoginRequest("same-account-same-store")
+        );
+
+        SessionArchiveResponse response = sessionService.getArchive(loginResponse.sessionId());
+
+        assertThat(response.count()).isEqualTo(1);
+        assertThat(response.visits().get(0).sessionId()).isEqualTo(first.sessionId());
+        assertThat(response.visits().get(0).products()).hasSize(1);
+    }
+
+    @Test
     void 계정에_연결되지_않은_세션은_아카이브를_조회할_수_없다() {
         CreateSessionResponse privateSession = sessionService.createSession(
                 new CreateSessionRequest(store.getStoreCode())
@@ -105,9 +131,9 @@ class SessionArchiveServiceTest {
                 );
     }
 
-    private CreateSessionResponse createAccountSession() {
+    private CreateSessionResponse createAccountSession(Store targetStore) {
         CreateSessionResponse session = sessionService.createSession(
-                new CreateSessionRequest(store.getStoreCode())
+                new CreateSessionRequest(targetStore.getStoreCode())
         );
         sessionService.kakaoLogin(session.sessionId(), new KakaoLoginRequest("same-account"));
         return session;

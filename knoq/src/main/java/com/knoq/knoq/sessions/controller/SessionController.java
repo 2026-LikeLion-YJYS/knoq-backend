@@ -94,7 +94,12 @@ public class SessionController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "카카오 로그인")
+    @Operation(
+            summary = "카카오 로그인",
+            description = "같은 계정 + 같은 매장으로 오늘 이미 로그인한 세션이 있으면 그 세션으로 갈아탑니다. "
+                    + "이 경우 응답의 sessionId/sessionToken이 요청에 쓴 것과 달라지므로, 이후 요청은 "
+                    + "반드시 응답에 담긴 sessionId/sessionToken을 사용해야 합니다."
+    )
     @PostMapping("/{sessionId}/kakao-login")
     public ResponseEntity<KakaoLoginResponse> kakaoLogin(
             @PathVariable String sessionId,
