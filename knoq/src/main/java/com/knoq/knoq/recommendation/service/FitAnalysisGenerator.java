@@ -50,7 +50,8 @@ public class FitAnalysisGenerator {
     private ObjectNode buildRequestBody(List<LifestyleTag> lifestyleTags, Product product) {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", "gpt-4o-mini");
-        root.put("max_tokens", 250);
+        root.put("max_tokens", 180);
+        root.put("temperature", 0.2);
 
         ObjectNode responseFormat = objectMapper.createObjectNode();
         responseFormat.put("type", "json_object");
@@ -64,13 +65,21 @@ public class FitAnalysisGenerator {
                 제공된 라이프스타일 태그와 제품 속성만 비교해 한국어 존댓말로 설명해라.
                 추측, 구매 강요, 제공되지 않은 사실은 포함하지 마라.
 
-                읽기 쉬운 짧은 단락으로 나누기 위해 다음 출력 규칙을 지켜라.
-                - summary: 결론만 담은 1문장, 45자 이내
-                - reasons: 서로 다른 적합 이유 2~3개, 각 항목은 독립된 1문장이고 60자 이내
-                - cautions: 확인할 점 1~2개, 각 항목은 독립된 1문장이고 60자 이내
-                - 한 항목 안에 여러 이유를 길게 이어 쓰지 마라.
-                - summary, reasons, cautions 사이에 같은 내용을 반복하지 마라.
-                - 배열의 각 항목은 화면에서 별도 단락으로 표시될 완결된 문장이어야 한다.
+                총 3문장만 생성하고 다음 순서를 반드시 지켜라.
+                1. summary: 고객의 라이프스타일 태그와 제품의 디자인이 왜 잘 어울리는지 1문장
+                2. reasons[0]: 제품 정보에 명시된 사이즈나 기능적 장점 1문장
+                3. reasons[1]: 제품 정보로 판단할 수 있는 사용 상황 1문장
+
+                작성 예시:
+                - 평소 선호하는 미니멀 스타일과 잘 어울립니다.
+                - 노트북 수납이 가능한 사이즈입니다.
+                - 출퇴근용으로 적합합니다.
+
+                각 문장은 45자 이내의 자연스러운 존댓말로 작성하라.
+                노트북 수납, 출퇴근용 등은 제품 정보에 근거가 있을 때만 사용하라.
+                어떤 구체적 기능이나 사용 상황도 판단할 수 없으면 제공된 소재·색상·크기 중 서로 겹치지 않는 근거를 사용하라.
+                세 문장에서 같은 표현이나 근거를 반복하지 마라.
+                cautions는 반드시 빈 배열로 반환하라.
 
                 반드시 JSON 객체만 반환하고 summary 문자열, reasons 문자열 배열,
                 cautions 문자열 배열 외의 필드는 사용하지 마라.
@@ -95,7 +104,7 @@ public class FitAnalysisGenerator {
                 "사이즈: " + product.getSizes() + "\n" +
                 "브랜드 설명: " + value(product.getBrandOfficialDescription()) + "\n" +
                 "AI 제품 설명: " + value(product.getAiGeneratedDescription()) + "\n" +
-                "위 정보만 근거로 짧은 요약 1문장과 서로 겹치지 않는 적합 이유 2~3개, 확인할 점 1~2개를 작성해줘.";
+                "위 정보만 근거로 summary 1문장과 reasons 2문장을 작성해줘. cautions는 빈 배열로 반환해줘.";
     }
 
     private FitAnalysisResponse parseResponse(String rawResponse) throws Exception {
@@ -113,12 +122,11 @@ public class FitAnalysisGenerator {
         JsonNode result = objectMapper.readTree(content);
         String summary = result.path("summary").asText();
         List<String> reasons = stringList(result.path("reasons"));
-        List<String> cautions = stringList(result.path("cautions"));
-        if (summary.isBlank() || reasons.isEmpty()) {
+        if (summary.isBlank() || reasons.size() < 2) {
             return null;
         }
 
-        return new FitAnalysisResponse(summary, reasons, cautions);
+        return new FitAnalysisResponse(summary, reasons.subList(0, 2), List.of());
     }
 
     private List<String> stringList(JsonNode arrayNode) {
