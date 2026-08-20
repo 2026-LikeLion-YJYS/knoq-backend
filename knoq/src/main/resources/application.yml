@@ -5,6 +5,9 @@ spring:
   profiles:
     default: local
 
+server:
+  forward-headers-strategy: framework
+
 ---
 spring:
   config:

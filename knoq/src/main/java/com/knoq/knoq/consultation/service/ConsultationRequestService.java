@@ -10,8 +10,10 @@ import com.knoq.knoq.consultation.repository.ConsultationRequestRepository;
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.global.util.IdGenerator;
+import com.knoq.knoq.needs.repository.NeedsAnalysisRepository;
 import com.knoq.knoq.notification.service.NotificationService;
 import com.knoq.knoq.product.repository.ProductRepository;
+import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.sessions.entity.Session;
 import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,8 @@ public class ConsultationRequestService {
     private final ConsultationRequestRepository consultationRequestRepository;
     private final SessionExpirationService sessionExpirationService;
     private final ProductRepository productRepository;
+    private final SavedProductRepository savedProductRepository;
+    private final NeedsAnalysisRepository needsAnalysisRepository;
     private final NotificationService notificationService;
 
     @Transactional
@@ -41,12 +45,16 @@ public class ConsultationRequestService {
         Session session = sessionExpirationService.getValidSessionAndRefresh(sessionId);
         validateRequest(request);
         validateNoActiveRequest(sessionId);
-        validateProducts(request.productIds());
+        validateProducts(sessionId, request.productIds());
 
         ConsultationRequest consultationRequest = ConsultationRequest.of(
                 IdGenerator.generate("req"), sessionId, session.getStoreId(), request.helpType(),
-                request.includeNeedsAnalysis()
+                request.includeNeedsAnalysis(), session.getNickname(), session.getLifestyleTags()
         );
+        if (request.includeNeedsAnalysis()) {
+            needsAnalysisRepository.findBySessionId(sessionId)
+                    .ifPresent(consultationRequest::snapshotNeedsAnalysis);
+        }
         request.productIds().forEach(consultationRequest::addProduct);
 
         ConsultationRequest savedRequest = consultationRequestRepository.saveAndFlush(consultationRequest);
@@ -79,6 +87,9 @@ public class ConsultationRequestService {
         if (request.productIds().stream().anyMatch(id -> id == null || id.isBlank())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR);
         }
+        if (request.productIds().stream().distinct().count() != request.productIds().size()) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR);
+        }
     }
 
     private void validateNoActiveRequest(String sessionId) {
@@ -87,10 +98,13 @@ public class ConsultationRequestService {
         }
     }
 
-    private void validateProducts(List<String> productIds) {
+    private void validateProducts(String sessionId, List<String> productIds) {
         for (String productId : productIds) {
             if (!productRepository.existsById(productId)) {
                 throw new ApiException(ErrorCode.PRODUCT_NOT_FOUND);
+            }
+            if (savedProductRepository.findBySessionIdAndProductId(sessionId, productId).isEmpty()) {
+                throw new ApiException(ErrorCode.SAVED_PRODUCT_NOT_FOUND);
             }
         }
     }

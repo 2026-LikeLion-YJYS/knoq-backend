@@ -202,7 +202,7 @@ class NeedsAnalysisServiceTest {
         saveProduct(productA, SavedProductSource.CAMERA);
         saveProduct(productB, SavedProductSource.RECOMMEND);
 
-        when(needsCommentGenerator.generate(any(), any(), any(), any()))
+        when(needsCommentGenerator.generate(any()))
                 .thenReturn("블랙 컬러의 울 소재 M 사이즈를 눈여겨보고 계시네요.");
 
         NeedsAnalysisResultResponse result = needsAnalysisService.analyze(session.getId());
@@ -235,7 +235,7 @@ class NeedsAnalysisServiceTest {
         saveProduct(productA, SavedProductSource.CAMERA);
         saveProduct(productB, SavedProductSource.RECOMMEND);
 
-        when(needsCommentGenerator.generate(any(), any(), any(), any()))
+        when(needsCommentGenerator.generate(any()))
                 .thenReturn(null);
 
         NeedsAnalysisResultResponse result = needsAnalysisService.analyze(session.getId());

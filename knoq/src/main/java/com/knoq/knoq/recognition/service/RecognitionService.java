@@ -16,6 +16,7 @@ import com.knoq.knoq.recognition.entity.Recognition;
 import com.knoq.knoq.recognition.entity.RecognitionCandidate;
 import com.knoq.knoq.recognition.entity.RecognitionStatus;
 import com.knoq.knoq.recognition.repository.RecognitionRepository;
+import com.knoq.knoq.saved.service.SavedProductService;
 import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -52,6 +53,7 @@ public class RecognitionService {
     private final ProductRepository productRepository;
     private final SessionExpirationService sessionExpirationService;
     private final OpenAiVisionClient openAiVisionClient;
+    private final SavedProductService savedProductService;
 
     @Transactional
     public RecognitionResponse recognize(String sessionId, MultipartFile image) {
@@ -191,6 +193,7 @@ public class RecognitionService {
         }
 
         recognition.confirm();
+        savedProductService.saveFromCamera(sessionId, request.productId());
         return new ConfirmRecognitionResponse(request.productId(), true);
     }
 

@@ -4,6 +4,10 @@ import com.knoq.knoq.account.entity.Account;
 import com.knoq.knoq.account.repository.AccountRepository;
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.product.entity.Product;
+import com.knoq.knoq.product.repository.ProductRepository;
+import com.knoq.knoq.saved.entity.SavedProduct;
+import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.sessions.client.KakaoApiClient;
 import com.knoq.knoq.sessions.dto.ConsentRequest;
 import com.knoq.knoq.sessions.dto.ConsentType;
@@ -17,6 +21,7 @@ import com.knoq.knoq.sessions.dto.LifestyleTagsRequest;
 import com.knoq.knoq.sessions.dto.LifestyleTagsResponse;
 import com.knoq.knoq.sessions.dto.NicknameRequest;
 import com.knoq.knoq.sessions.dto.NicknameResponse;
+import com.knoq.knoq.sessions.dto.SessionArchiveResponse;
 import com.knoq.knoq.sessions.dto.StorageScopeRequest;
 import com.knoq.knoq.sessions.dto.StorageScopeResponse;
 import com.knoq.knoq.sessions.entity.LifestyleTag;
@@ -35,8 +40,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -52,6 +61,8 @@ public class SessionService {
     private final SessionRepository sessionRepository;
     private final StoreRepository storeRepository;
     private final AccountRepository accountRepository;
+    private final SavedProductRepository savedProductRepository;
+    private final ProductRepository productRepository;
     private final KakaoApiClient kakaoApiClient;
     private final ApplicationEventPublisher eventPublisher;
     private final SessionExpirationService sessionExpirationService;
@@ -104,6 +115,64 @@ public class SessionService {
                 session.getLifestyleTags(),
                 session.getExpiresAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public SessionArchiveResponse getArchive(String currentSessionId) {
+        Session currentSession = sessionExpirationService.getValidSession(currentSessionId);
+        if (currentSession.getStorageScope() != StorageScope.ACCOUNT
+                || currentSession.getAccountId() == null) {
+            throw new ApiException(ErrorCode.ACCOUNT_LOGIN_REQUIRED);
+        }
+
+        List<Session> sessions = sessionRepository
+                .findByAccountIdOrderByCreatedAtDesc(currentSession.getAccountId());
+        List<String> sessionIds = sessions.stream().map(Session::getId).toList();
+
+        Map<String, List<SavedProduct>> savedProductsBySession = sessionIds.isEmpty()
+                ? Collections.emptyMap()
+                : savedProductRepository.findBySessionIdInOrderBySavedAtDesc(sessionIds).stream()
+                .collect(Collectors.groupingBy(SavedProduct::getSessionId));
+
+        List<String> productIds = savedProductsBySession.values().stream()
+                .flatMap(List::stream)
+                .map(SavedProduct::getProductId)
+                .distinct()
+                .toList();
+        Map<String, Product> productsById = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        List<SessionArchiveResponse.Visit> visits = sessions.stream()
+                .map(session -> new SessionArchiveResponse.Visit(
+                        session.getId(),
+                        session.getCreatedAt(),
+                        session.getId().equals(currentSessionId),
+                        toArchivedProducts(
+                                savedProductsBySession.getOrDefault(session.getId(), List.of()),
+                                productsById
+                        )
+                ))
+                .toList();
+
+        return new SessionArchiveResponse(visits.size(), visits);
+    }
+
+    private List<SessionArchiveResponse.ArchivedProduct> toArchivedProducts(
+            List<SavedProduct> savedProducts,
+            Map<String, Product> productsById
+    ) {
+        return savedProducts.stream()
+                .map(savedProduct -> {
+                    Product product = productsById.get(savedProduct.getProductId());
+                    return new SessionArchiveResponse.ArchivedProduct(
+                            savedProduct.getProductId(),
+                            product == null ? null : product.getName(),
+                            product == null ? null : product.getThumbnailUrl(),
+                            savedProduct.getSource(),
+                            savedProduct.getSavedAt()
+                    );
+                })
+                .toList();
     }
 
     @Transactional

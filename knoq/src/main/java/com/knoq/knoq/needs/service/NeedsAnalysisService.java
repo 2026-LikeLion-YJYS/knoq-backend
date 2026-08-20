@@ -63,7 +63,7 @@ public class NeedsAnalysisService {
         String size = NeedsAnalysisAggregator.mostFrequent(
                 attributes.stream().flatMap(a -> a.sizes().stream()).toList());
         String templateComment = NeedsAnalysisAggregator.buildComment(color, material, size);
-        String generatedComment = needsCommentGenerator.generate(category, color, material, size);
+        String generatedComment = needsCommentGenerator.generate(attributes);
         String comment = (generatedComment == null || generatedComment.isBlank())
                 ? templateComment
                 : generatedComment;
