@@ -37,6 +37,8 @@ class OpenAiVisionClientTest {
         ObjectNode body = client.buildRequestBody(
                 "captured-jpeg", List.of(product), "low", true);
 
+        assertThat(body.path("model").asText()).isEqualTo("gpt-4o-mini");
+        assertThat(body.has("temperature")).isFalse();
         List<JsonNode> imageParts = imageParts(body);
         assertThat(imageParts).hasSize(2);
         assertThat(imageParts)

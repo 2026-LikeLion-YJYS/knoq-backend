@@ -64,8 +64,19 @@ public class OpenAiVisionClient {
             }
 
             // 2차는 후보 3개의 모든 기준 이미지를 high로 보고 미세한 차이를 비교한다.
-            return requestMatches(
-                    capturedImageBase64, shortlistedProducts, "high", false, "2차 정밀 비교");
+            try {
+                return requestMatches(
+                        capturedImageBase64, shortlistedProducts, "high", false, "2차 정밀 비교");
+            } catch (Exception secondPassError) {
+                // high 요청이 레이트 리밋 등으로 실패해도 인식 전체를 실패시키지 않고
+                // 랜덤이 아닌 1차 AI 후보를 그대로 반환한다.
+                log.warn("OpenAI 2차 정밀 비교 실패, 1차 AI 후보로 대체합니다.", secondPassError);
+                return firstPassMatches.stream()
+                        .filter(match -> productById.containsKey(match.productId()))
+                        .sorted(Comparator.comparingDouble(VisionMatch::confidence).reversed())
+                        .limit(3)
+                        .toList();
+            }
         } catch (Exception e) {
             log.error("OpenAI 비전 인식 실패", e);
             throw new ApiException(ErrorCode.VISION_RECOGNITION_FAILED);
@@ -107,7 +118,6 @@ public class OpenAiVisionClient {
     ) {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", visionModel);
-        root.put("temperature", 0);
 
         ObjectNode responseFormat = objectMapper.createObjectNode();
         responseFormat.put("type", "json_object");
