@@ -7,13 +7,14 @@ import com.knoq.knoq.product.dto.ProductFeaturesResponse;
 import com.knoq.knoq.product.entity.Product;
 import com.knoq.knoq.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.util.Base64;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -43,7 +44,7 @@ public class ProductService {
                 product.getSizes(),
                 product.getColors(),
                 product.getThumbnailUrl(),
-                product.getReferenceImages(),
+                productImageUrls(product.getId()),
                 product.getAiGeneratedDescription()
         );
     }
@@ -72,5 +73,12 @@ public class ProductService {
         return new ClassPathResource("static/" + relativePath).exists()
                 ? "/" + relativePath
                 : null;
+    }
+
+    private List<String> productImageUrls(String productId) {
+        return List.of("front.png", "side.png", "top.png", "detail.png").stream()
+                .map(fileName -> featureImageUrl(productId, fileName))
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 }

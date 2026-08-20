@@ -29,7 +29,10 @@ public record ProductDetailResponse(
         @Schema(example = "/demo/products/prod_1/front.png")
         String thumbnailUrl,
 
-        @Schema(description = "정면, 측면, 윗면 순서의 Base64 이미지 목록. 등록된 이미지가 없으면 빈 배열")
+        @Schema(
+                description = "정면, 측면, 윗면, 상세 순서의 정적 이미지 URL 목록. 이미지가 없으면 빈 배열",
+                example = "[\"/demo/products/prod_1/front.png\", \"/demo/products/prod_1/side.png\", \"/demo/products/prod_1/top.png\", \"/demo/products/prod_1/detail.png\"]"
+        )
         List<String> images,
 
         @Schema(example = "클래식한 모노그램과 가죽 트림이 돋보이는 포멀한 호보백입니다.")

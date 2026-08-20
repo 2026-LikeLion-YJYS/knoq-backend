@@ -63,7 +63,7 @@ class ProductServiceTest {
         assertThat(response.size()).containsExactly("S", "M", "L");
         assertThat(response.color()).containsExactly("블랙", "베이지");
         assertThat(response.thumbnailUrl()).isEqualTo("https://example.com/thumb.jpg");
-        assertThat(response.images()).containsExactly("front-base64", "side-base64", "top-base64");
+        assertThat(response.images()).isEmpty();
         assertThat(response.aiGenerated()).isNull();
     }
 
@@ -106,6 +106,12 @@ class ProductServiceTest {
                 .isEqualTo("/demo/products/prod_1/style.png");
         assertThat(response.features().compositionImageUrl())
                 .isEqualTo("/demo/products/prod_1/composition.png");
+        assertThat(response.images()).containsExactly(
+                "/demo/products/prod_1/front.png",
+                "/demo/products/prod_1/side.png",
+                "/demo/products/prod_1/top.png",
+                "/demo/products/prod_1/detail.png"
+        );
     }
 
     @Test
