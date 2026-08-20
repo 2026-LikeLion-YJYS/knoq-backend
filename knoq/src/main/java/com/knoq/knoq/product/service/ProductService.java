@@ -30,11 +30,13 @@ public class ProductService {
                 product.getId(),
                 product.getName(),
                 orNoInfo(product.getMaterial()),
+                orNoInfo(product.getFeatures()),
                 product.getPrice(),
                 product.getSizes(),
                 product.getColors(),
-                product.getAiGeneratedDescription(), // 없으면 그냥 null
-                product.getReferenceImages() // FR-200용으로 등록해둔 정면/측면/윗면 사진 재사용
+                product.getThumbnailUrl(),
+                product.getReferenceImages(),
+                product.getAiGeneratedDescription()
         );
     }
 

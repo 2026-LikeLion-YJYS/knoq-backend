@@ -11,8 +11,9 @@ import java.util.List;
 public record GetSessionResponse(
         String sessionId,
         String storeName,
-        LocalDateTime expiresAt,
         StorageScope storageScope,
         String nickname,
-        List<LifestyleTag> lifestyleTags
-) {}
+        List<LifestyleTag> lifestyleTags,
+        LocalDateTime expiresAt
+) {
+}

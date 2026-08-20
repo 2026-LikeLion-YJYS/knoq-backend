@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,12 +63,13 @@ class SessionServiceTest {
 
     @BeforeEach
     void setUp() {
-        testStore = storeRepository.save(Store.of("TEST-001", "테스트 매장"));
+        String storeCode = "SESSION-TEST-" + UUID.randomUUID().toString().substring(0, 8);
+        testStore = storeRepository.save(Store.of(storeCode, "테스트 매장"));
     }
 
     @Test
     void 유효한_매장코드로_요청하면_세션을_생성한다() {
-        CreateSessionRequest request = new CreateSessionRequest("TEST-001");
+        CreateSessionRequest request = new CreateSessionRequest(testStore.getStoreCode());
 
         CreateSessionResponse response = sessionService.createSession(request);
 
@@ -87,7 +89,7 @@ class SessionServiceTest {
 
     @Test
     void 존재하는_세션을_조회하면_정보를_반환한다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
 
         GetSessionResponse response = sessionService.getSession(created.sessionId());
 
@@ -98,6 +100,28 @@ class SessionServiceTest {
         assertThat(response.storageScope()).isEqualTo(StorageScope.PRIVATE);
         assertThat(response.nickname()).isNull();
         assertThat(response.lifestyleTags()).isEmpty();
+    }
+
+    @Test
+    void 세션_조회는_폴링_API이므로_만료시간을_갱신하지_않는다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
+
+        sessionService.getSession(created.sessionId());
+
+        Session found = sessionRepository.findById(created.sessionId()).orElseThrow();
+        assertThat(found.getExpiresAt()).isEqualTo(created.expiresAt());
+    }
+
+    @Test
+    void 실제_사용자_동작_API는_세션_만료시간을_갱신한다() {
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
+
+        sessionService.selectStorageScope(
+                created.sessionId(), new StorageScopeRequest(StorageScope.PRIVATE)
+        );
+
+        Session found = sessionRepository.findById(created.sessionId()).orElseThrow();
+        assertThat(found.getExpiresAt()).isAfter(created.expiresAt());
     }
 
     @Test
@@ -123,7 +147,7 @@ class SessionServiceTest {
 
     @Test
     void 필수_약관에_모두_동의하면_저장된다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         ConsentRequest request = new ConsentRequest(true, true, true, false);
 
         ConsentsResponse response = sessionService.agreeConsents(created.sessionId(), request);
@@ -135,7 +159,7 @@ class SessionServiceTest {
 
     @Test
     void 필수_약관을_하나라도_동의안하면_예외를_던진다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         ConsentRequest request = new ConsentRequest(true, true, false, false); // over14 미동의
 
         assertThatThrownBy(() -> sessionService.agreeConsents(created.sessionId(), request))
@@ -144,7 +168,7 @@ class SessionServiceTest {
 
     @Test
     void PRIVATE를_선택하면_PRIVATE로_유지된다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
 
         StorageScopeResponse response = sessionService.selectStorageScope(
                 created.sessionId(), new StorageScopeRequest(StorageScope.PRIVATE)
@@ -156,7 +180,7 @@ class SessionServiceTest {
 
     @Test
     void ACCOUNT를_선택하면_카카오로그인_대기_상태가_된다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
 
         StorageScopeResponse response = sessionService.selectStorageScope(
                 created.sessionId(), new StorageScopeRequest(StorageScope.ACCOUNT)
@@ -168,7 +192,7 @@ class SessionServiceTest {
 
     @Test
     void 카카오_로그인에_성공하면_계정이_연결된다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         when(kakaoApiClient.getKakaoUserId("valid-token")).thenReturn(Optional.of(123456789L));
 
         KakaoLoginResponse response = sessionService.kakaoLogin(
@@ -181,7 +205,7 @@ class SessionServiceTest {
 
     @Test
     void 카카오_로그인에_실패해도_에러_없이_PRIVATE로_응답한다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         when(kakaoApiClient.getKakaoUserId("invalid-token")).thenReturn(Optional.empty());
 
         KakaoLoginResponse response = sessionService.kakaoLogin(
@@ -194,7 +218,7 @@ class SessionServiceTest {
 
     @Test
     void 닉네임을_지정하면_그대로_저장된다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
 
         NicknameResponse response = sessionService.setNickname(created.sessionId(), new NicknameRequest("민트라떼"));
 
@@ -204,7 +228,7 @@ class SessionServiceTest {
 
     @Test
     void 닉네임을_생략하면_자동_생성된다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
 
         NicknameResponse response = sessionService.setNickname(created.sessionId(), new NicknameRequest(null));
 
@@ -214,7 +238,7 @@ class SessionServiceTest {
 
     @Test
     void 금칙어가_포함되면_예외를_던진다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
 
         assertThatThrownBy(() -> sessionService.setNickname(created.sessionId(), new NicknameRequest("병신라떼")))
                 .isInstanceOf(ApiException.class);
@@ -222,7 +246,7 @@ class SessionServiceTest {
 
     @Test
     void 라이프스타일_태그를_1개에서_3개_고르면_저장된다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         LifestyleTagsRequest request = new LifestyleTagsRequest(List.of(LifestyleTag.MINIMAL, LifestyleTag.CASUAL));
 
         LifestyleTagsResponse response = sessionService.updateLifestyleTags(created.sessionId(), request);
@@ -232,7 +256,7 @@ class SessionServiceTest {
 
     @Test
     void 라이프스타일_태그를_하나도_안_고르면_예외를_던진다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         LifestyleTagsRequest request = new LifestyleTagsRequest(List.of());
 
         assertThatThrownBy(() -> sessionService.updateLifestyleTags(created.sessionId(), request))
@@ -241,7 +265,7 @@ class SessionServiceTest {
 
     @Test
     void 라이프스타일_태그를_4개_이상_고르면_예외를_던진다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         LifestyleTagsRequest request = new LifestyleTagsRequest(List.of(
                 LifestyleTag.MINIMAL, LifestyleTag.CASUAL, LifestyleTag.STREET, LifestyleTag.FORMAL
         ));
@@ -252,7 +276,7 @@ class SessionServiceTest {
 
     @Test
     void PRIVATE_세션은_쇼핑_마치면_하드_삭제된다(ApplicationEvents events) {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
 
         sessionService.finishShopping(created.sessionId());
 
@@ -262,7 +286,7 @@ class SessionServiceTest {
 
     @Test
     void ACCOUNT_세션은_쇼핑_마치면_삭제되지_않고_즉시_만료된다(ApplicationEvents events) {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         when(kakaoApiClient.getKakaoUserId("valid-token")).thenReturn(Optional.of(999L));
         sessionService.kakaoLogin(created.sessionId(), new KakaoLoginRequest("valid-token")); // ACCOUNT로 전환
 
@@ -275,7 +299,7 @@ class SessionServiceTest {
 
     @Test
     void ACCOUNT_세션에_로그아웃하면_PRIVATE로_돌아간다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         when(kakaoApiClient.getKakaoUserId("valid-token")).thenReturn(Optional.of(888L));
         sessionService.kakaoLogin(created.sessionId(), new KakaoLoginRequest("valid-token")); // ACCOUNT로 전환
 
@@ -288,7 +312,7 @@ class SessionServiceTest {
 
     @Test
     void 이미_PRIVATE인_세션에_로그아웃해도_에러_없이_그대로다() {
-        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest("TEST-001"));
+        CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
 
         sessionService.logout(created.sessionId());
 
