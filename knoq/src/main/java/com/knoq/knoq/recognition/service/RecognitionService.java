@@ -65,6 +65,8 @@ public class RecognitionService {
         if (image == null || image.isEmpty()) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR);
         }
+        log.info("FR-200 카메라 인식 요청: contentType={}, size={} bytes",
+                image.getContentType(), image.getSize());
 
         List<Product> products = productRepository.findAll();
         if (products.isEmpty()) {

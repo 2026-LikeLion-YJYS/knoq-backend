@@ -2,6 +2,12 @@ spring:
   application:
     name: knoq
 
+  servlet:
+    multipart:
+      # 모바일 카메라 원본은 Spring Boot 기본 한도(파일당 1MB)를 쉽게 넘는다.
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:10MB}
+
   profiles:
     default: local
 
