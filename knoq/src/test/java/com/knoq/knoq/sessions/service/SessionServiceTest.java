@@ -423,7 +423,7 @@ class SessionServiceTest {
     }
 
     @Test
-    void ACCOUNT_세션에_로그아웃하면_PRIVATE로_돌아간다() {
+    void ACCOUNT_세션에_로그아웃해도_계정과_아카이브_연결은_남기고_세션만_만료한다() {
         CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         when(kakaoApiClient.getKakaoUserId("valid-token")).thenReturn(Optional.of(888L));
         sessionService.kakaoLogin(created.sessionId(), new KakaoLoginRequest("valid-token")); // ACCOUNT로 전환
@@ -431,8 +431,9 @@ class SessionServiceTest {
         sessionService.logout(created.sessionId());
 
         Session found = sessionRepository.findById(created.sessionId()).orElseThrow();
-        assertThat(found.getStorageScope()).isEqualTo(StorageScope.PRIVATE);
-        assertThat(found.getAccountId()).isNull();
+        assertThat(found.getStorageScope()).isEqualTo(StorageScope.ACCOUNT);
+        assertThat(found.getAccountId()).isNotNull();
+        assertThat(found.getExpiresAt()).isBeforeOrEqualTo(LocalDateTime.now());
     }
 
     @Test

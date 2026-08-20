@@ -381,8 +381,14 @@ public class SessionService {
     @Transactional
     public void logout(String sessionId) {
         Session session = sessionExpirationService.getValidSessionAndRefresh(sessionId);
-        // "카카오 로그인"의 반대 동작 — 이미 만들어둔 usePrivateStorage()를 그대로 재사용
-        // (storageScope를 PRIVATE로 되돌리고 accountId도 비움)
+        if (session.getStorageScope() == StorageScope.ACCOUNT) {
+            // 로그아웃은 현재 인증만 종료한다. accountId/storageScope를 지우면
+            // 오늘 탐색 아카이브가 카카오 계정에서 분리되므로 세션은 남기고 만료만 시킨다.
+            session.endSession();
+            return;
+        }
+
+        // 계정에 연결되지 않은 세션은 기존 PRIVATE 상태를 유지한다.
         session.usePrivateStorage();
     }
 
