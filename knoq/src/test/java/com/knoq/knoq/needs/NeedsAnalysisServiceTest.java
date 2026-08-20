@@ -346,6 +346,10 @@ class NeedsAnalysisServiceTest {
         );
         LocalDateTime editedAnalyzedAt = edited.getAnalyzedAt();
 
+        when(needsCommentGenerator.generateFromSelections(
+                "토트백 / 쇼퍼백", "Black · Cognac", "Leather", "Medium · Large"
+        )).thenReturn("Black · Cognac 컬러의 Medium · Large 사이즈 Leather 토트백과 쇼퍼백을 선호하고 계세요.");
+
         NeedsAnalysisResultResponse reanalyzed = needsAnalysisService.analyze(session.getId());
 
         // 사용자가 고른 네 항목은 재분석 이후에도 그대로 유지됨 (저장된 제품 속성으로 재집계되지 않음)
@@ -355,10 +359,17 @@ class NeedsAnalysisServiceTest {
         assertThat(reanalyzed.getPreferredSize()).isEqualTo("Medium · Large");
         // comment만 그 네 항목을 기준으로 새로 생성됨
         assertThat(reanalyzed.getComment()).isEqualTo(
-                "저장하신 제품들은 주로 Leather 소재, Black · Cognac 계열, Medium · Large 사이즈를 선호하시는 경향이 있습니다."
+                "Black · Cognac 컬러의 Medium · Large 사이즈 Leather 토트백과 쇼퍼백을 선호하고 계세요."
         );
         assertThat(reanalyzed.getAnalyzedAt()).isAfter(editedAnalyzedAt);
         assertThat(needsAnalysisRepository.count()).isEqualTo(1);
+
+        NeedsAnalysis saved = needsAnalysisRepository.findBySessionId(session.getId()).orElseThrow();
+        assertThat(saved.getProductCategory()).isEqualTo("토트백 / 쇼퍼백");
+        assertThat(saved.getPreferredColor()).isEqualTo("Black · Cognac");
+        assertThat(saved.getPreferredMaterial()).isEqualTo("Leather");
+        assertThat(saved.getPreferredSize()).isEqualTo("Medium · Large");
+        assertThat(saved.getComment()).isEqualTo(reanalyzed.getComment());
     }
 
     @Test

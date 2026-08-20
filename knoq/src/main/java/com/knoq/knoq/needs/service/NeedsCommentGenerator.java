@@ -46,6 +46,40 @@ public class NeedsCommentGenerator {
         }
     }
 
+    /**
+     * 고객이 PUT으로 직접 선택한 네 가지 니즈 값을 바탕으로 comment만 새로 생성한다.
+     */
+    public String generateFromSelections(
+            String productCategory,
+            String preferredColor,
+            String preferredMaterial,
+            String preferredSize
+    ) {
+        try {
+            String requestBodyJson = objectMapper.writeValueAsString(
+                    buildSelectionsRequestBody(
+                            productCategory,
+                            preferredColor,
+                            preferredMaterial,
+                            preferredSize
+                    )
+            );
+
+            String rawResponse = restClient.post()
+                    .uri(API_URL)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBodyJson)
+                    .retrieve()
+                    .body(String.class);
+
+            return parseSelectionComment(rawResponse);
+        } catch (Exception e) {
+            log.warn("수정된 니즈 기반 코멘트 생성 실패, 룰 기반 문장으로 대체합니다.", e);
+            return null;
+        }
+    }
+
     private ObjectNode buildRequestBody(List<ProductAttributes> products) throws Exception {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", "gpt-4o-mini");
@@ -65,6 +99,42 @@ public class NeedsCommentGenerator {
         ObjectNode userMessage = objectMapper.createObjectNode();
         userMessage.put("role", "user");
         userMessage.put("content", buildPrompt(products));
+        messages.add(userMessage);
+
+        root.set("messages", messages);
+        return root;
+    }
+
+    ObjectNode buildSelectionsRequestBody(
+            String productCategory,
+            String preferredColor,
+            String preferredMaterial,
+            String preferredSize
+    ) {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("model", "gpt-4o-mini");
+        root.put("max_tokens", 200);
+
+        ObjectNode responseFormat = objectMapper.createObjectNode();
+        responseFormat.put("type", "json_object");
+        root.set("response_format", responseFormat);
+
+        ArrayNode messages = objectMapper.createArrayNode();
+
+        ObjectNode systemMessage = objectMapper.createObjectNode();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", EDITED_SELECTIONS_SYSTEM_PROMPT);
+        messages.add(systemMessage);
+
+        ObjectNode selections = objectMapper.createObjectNode();
+        selections.put("productCategory", productCategory);
+        selections.put("preferredColor", preferredColor);
+        selections.put("preferredMaterial", preferredMaterial);
+        selections.put("preferredSize", preferredSize);
+
+        ObjectNode userMessage = objectMapper.createObjectNode();
+        userMessage.put("role", "user");
+        userMessage.put("content", selections.toString());
         messages.add(userMessage);
 
         root.set("messages", messages);
@@ -100,6 +170,36 @@ public class NeedsCommentGenerator {
         }
         return comment;
     }
+
+    String parseSelectionComment(String rawResponse) throws Exception {
+        JsonNode root = objectMapper.readTree(rawResponse);
+        String content = root.path("choices").get(0).path("message").path("content").asText();
+        if (content == null || content.isBlank()) {
+            return null;
+        }
+
+        String comment = objectMapper.readTree(content).path("comment").asText().trim();
+        return comment.isBlank() ? null : comment;
+    }
+
+    private static final String EDITED_SELECTIONS_SYSTEM_PROMPT = """
+            너는 럭셔리 패션 쇼핑 서비스 KNOQ의 AI 니즈 코멘트 작성기다.
+
+            입력값은 고객이 직접 선택한 productCategory, preferredColor,
+            preferredMaterial, preferredSize이다. 네 값을 분석해 새로 정하거나
+            변형하지 말고, 그대로 존중해 고객에게 보여줄 자연스러운 한국어
+            존댓말 한 문장을 작성한다.
+
+            규칙:
+            1. 반드시 네 가지 선택값을 모두 문장에 반영한다.
+            2. 입력에 없는 사용 목적, 라이프스타일, 성향을 추측하지 않는다.
+            3. 분석 결과, 데이터, 수정값 같은 기술적 표현을 사용하지 않는다.
+            4. 네 값을 쉼표로만 나열하지 말고 하나의 자연스러운 선호 문장으로 연결한다.
+            5. JSON 앞뒤에 Markdown나 설명을 추가하지 않는다.
+
+            반드시 다음 JSON 형식으로만 응답한다.
+            {"comment":"고객에게 보여줄 자연스러운 한 문장"}
+            """;
 
     private static final String SYSTEM_PROMPT = """
             너는 럭셔리 패션 쇼핑 서비스 KNOQ의 AI 니즈 분석 엔진이다.

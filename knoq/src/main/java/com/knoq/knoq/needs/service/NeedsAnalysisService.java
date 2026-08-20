@@ -57,11 +57,20 @@ public class NeedsAnalysisService {
 
         // 사용자가 PUT으로 네 항목을 이미 직접 수정했다면, 재분석해도 그 값은 그대로 두고 comment만 새로 만듦
         if (needsAnalysis.isUserEdited()) {
-            String comment = NeedsAnalysisAggregator.buildComment(
+            String generatedComment = needsCommentGenerator.generateFromSelections(
+                    needsAnalysis.getProductCategory(),
                     needsAnalysis.getPreferredColor(),
                     needsAnalysis.getPreferredMaterial(),
                     needsAnalysis.getPreferredSize()
             );
+            String comment = (generatedComment == null || generatedComment.isBlank())
+                    ? NeedsAnalysisAggregator.buildSelectionComment(
+                            needsAnalysis.getProductCategory(),
+                            needsAnalysis.getPreferredColor(),
+                            needsAnalysis.getPreferredMaterial(),
+                            needsAnalysis.getPreferredSize()
+                    )
+                    : generatedComment;
             needsAnalysis.updateComment(comment);
             needsAnalysisRepository.save(needsAnalysis);
             return NeedsAnalysisResultResponse.from(needsAnalysis);
