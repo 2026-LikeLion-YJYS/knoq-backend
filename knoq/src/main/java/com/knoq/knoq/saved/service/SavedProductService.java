@@ -2,11 +2,13 @@ package com.knoq.knoq.saved.service;
 
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
+import com.knoq.knoq.product.repository.ProductRepository;
 import com.knoq.knoq.saved.entity.SavedProduct;
-import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.saved.entity.SavedProductSource;
+import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.sessions.service.SessionExpirationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,11 +18,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SavedProductService {
 
-    // TODO: 보관함 저장 상한 확정 후 수정
-    private static final int MAX_SAVED = 9;
-
     private final SavedProductRepository repository;
+    private final ProductRepository productRepository;
     private final SessionExpirationService sessionExpirationService;
+
+    @Value("${knoq.saved.max-products:9}")
+    private int maxSavedProducts;
 
     @Transactional
     public SavedProduct saveFromCamera(
@@ -53,11 +56,15 @@ public class SavedProductService {
     ) {
         sessionExpirationService.getValidSessionAndRefresh(sessionId);
 
+        if (!productRepository.existsById(productId)) {
+            throw new ApiException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
+
         return repository
                 .findBySessionIdAndProductId(sessionId, productId)
                 .orElseGet(() -> {
 
-                    if (repository.countBySessionId(sessionId) >= MAX_SAVED) {
+                    if (repository.countBySessionId(sessionId) >= maxSavedProducts) {
                         throw new ApiException(ErrorCode.SAVED_PRODUCT_LIMIT_EXCEEDED);
                     }
 

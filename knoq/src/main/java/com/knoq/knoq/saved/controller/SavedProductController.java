@@ -6,6 +6,8 @@ import com.knoq.knoq.saved.dto.response.SavedProductResponse;
 import com.knoq.knoq.saved.service.SavedProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,12 @@ public class SavedProductController {
     private final SavedProductService savedProductService;
 
     @Operation(summary = "제품 저장")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "제품 저장 성공"),
+            @ApiResponse(responseCode = "400", description = "보관함 저장 상한 초과"),
+            @ApiResponse(responseCode = "404", description = "세션 또는 제품을 찾을 수 없음"),
+            @ApiResponse(responseCode = "410", description = "세션 만료")
+    })
     @PostMapping
     public ResponseEntity<SavedProductResponse> saveProduct(
             @Parameter(example = "sess_abc123") @PathVariable String sessionId,
