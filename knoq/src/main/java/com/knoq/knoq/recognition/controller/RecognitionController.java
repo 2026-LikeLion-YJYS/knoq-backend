@@ -8,6 +8,7 @@ import com.knoq.knoq.recognition.dto.RecognitionResponse;
 import com.knoq.knoq.recognition.service.RecognitionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,7 +26,9 @@ public class RecognitionController {
     private final RecognitionService recognitionService;
 
     // 2.1 카메라 인식 요청 (FR-200)
-    @PostMapping("/recognitions")
+    // consumes를 명시 안 하면 springdoc이 Swagger에 application/json + binary로 잘못 표시하는 경우가 있어서
+    // multipart/form-data라는 걸 명확히 해줌 (실제 바인딩 동작 자체는 원래도 multipart였음)
+    @PostMapping(value = "/recognitions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<RecognitionResponse> recognize(@PathVariable String sessionId,
                                                          @RequestParam("image") MultipartFile image) {
         return ResponseEntity.ok(recognitionService.recognize(sessionId, image));

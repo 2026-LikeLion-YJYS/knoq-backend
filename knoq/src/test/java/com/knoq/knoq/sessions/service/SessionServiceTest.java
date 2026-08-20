@@ -94,6 +94,10 @@ class SessionServiceTest {
         assertThat(response.sessionId()).isEqualTo(created.sessionId());
         assertThat(response.storeName()).isEqualTo("테스트 매장");
         assertThat(response.expiresAt()).isEqualTo(created.expiresAt());
+        // 새로고침 시 프론트가 상태 복원할 수 있게 storageScope/nickname/lifestyleTags도 응답에 포함
+        assertThat(response.storageScope()).isEqualTo(StorageScope.PRIVATE);
+        assertThat(response.nickname()).isNull();
+        assertThat(response.lifestyleTags()).isEmpty();
     }
 
     @Test

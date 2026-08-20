@@ -1,34 +1,19 @@
 package com.knoq.knoq.product.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-
 import java.util.List;
 
+// 브랜드 공식 설명 / 특징(features)은 화면에 안 쓰기로 해서 응답에서 제외 (AI 요약 aiGenerated로 대체)
+// images: FR-200 등록용으로 찍어둔 정면/측면/윗면 사진(base64)을 그대로 재사용.
+// 등록할 때 "정면 → 측면 → 윗면" 순서로 호출하는 게 규칙이라 배열 순서 = [정면, 측면, 윗면]으로 취급.
+// 별도 이미지 URL이 아니라 base64 원본 문자열이라, 프론트에서 data:image/jpeg;base64, 접두어 붙여서 써야 함.
+// prod_1~3처럼 등록 안 한 제품은 빈 배열로 내려가니, 그 경우 thumbnailUrl로 대체 표시.
 public record ProductDetailResponse(
-        @Schema(example = "prod_1")
         String productId,
-
-        @Schema(example = "Tracy 비세토스 호보")
         String name,
-
-        @Schema(example = "비세토스 모노그램 캔버스 + 나파 가죽")
         String material,
-
-        @Schema(example = "길이 조절 및 탈부착 가능한 가죽 스트랩, 로고 락 클로저, 내부 슬립 포켓, 지퍼 수납공간")
-        String features,
-
-        @Schema(example = "1690000")
         Long price,
-
-        @Schema(example = "[\"L\", \"11 x 33 x 31 cm\"]")
         List<String> size,
-
-        @Schema(example = "[\"Cognac\"]")
         List<String> color,
-
-        @Schema(example = "/demo/products/prod_1/front.png")
-        String thumbnailUrl,
-
-        @Schema(example = "클래식한 모노그램과 가죽 트림이 돋보이는 포멀한 호보백입니다.")
-        String aiGenerated
+        String aiGenerated,
+        List<String> images
 ) {}
