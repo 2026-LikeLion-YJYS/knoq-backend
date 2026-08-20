@@ -41,6 +41,24 @@ public class Product {
     @Column(length = 500)
     private String features;
 
+    @ElementCollection
+    @CollectionTable(name = "product_feature_style", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "feature", nullable = false, length = 100)
+    private List<String> featureStyles = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_feature_composition", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "feature", nullable = false, length = 100)
+    private List<String> featureCompositions = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_feature_usage", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "feature", nullable = false, length = 100)
+    private List<String> featureUsages = new ArrayList<>();
+
     private Long price;
 
     // FR-200 후보 목록 카드에 쓰는 썸네일
@@ -102,6 +120,15 @@ public class Product {
 
     public void updateCategory(String category) {
         this.category = category;
+    }
+
+    public void updateStructuredFeatures(List<String> styles, List<String> compositions, List<String> usages) {
+        this.featureStyles.clear();
+        this.featureStyles.addAll(styles);
+        this.featureCompositions.clear();
+        this.featureCompositions.addAll(compositions);
+        this.featureUsages.clear();
+        this.featureUsages.addAll(usages);
     }
 
     // 사진 등록 시 기준 벡터를 갱신(최초 등록/재등록 둘 다 이걸로 처리) — 더 이상 안 씀

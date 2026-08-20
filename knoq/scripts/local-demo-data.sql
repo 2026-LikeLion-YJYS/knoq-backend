@@ -17,6 +17,9 @@ TRUNCATE TABLE session;
 TRUNCATE TABLE account;
 TRUNCATE TABLE product_reference_image;
 TRUNCATE TABLE product_embedding;
+TRUNCATE TABLE product_feature_usage;
+TRUNCATE TABLE product_feature_composition;
+TRUNCATE TABLE product_feature_style;
 TRUNCATE TABLE product_color;
 TRUNCATE TABLE product_size;
 TRUNCATE TABLE product;
@@ -178,3 +181,78 @@ INSERT INTO product_size (product_id, size) VALUES
 ('prod_8', '13 x 29 x 32 cm'),
 ('prod_9', 'S'),
 ('prod_9', '9 x 21 x 37 cm');
+
+DELETE FROM product_feature_style
+WHERE product_id IN ('prod_1', 'prod_2', 'prod_3', 'prod_4', 'prod_5', 'prod_6', 'prod_7', 'prod_8', 'prod_9');
+
+INSERT INTO product_feature_style (product_id, position, feature) VALUES
+('prod_1', 0, '클래식'),
+('prod_1', 1, '포멀'),
+('prod_1', 2, '세련된'),
+('prod_2', 0, '미니멀'),
+('prod_2', 1, '클래식'),
+('prod_3', 0, '트렌디'),
+('prod_3', 1, '클래식'),
+('prod_4', 0, '스트릿'),
+('prod_4', 1, '트렌디'),
+('prod_5', 0, '캐주얼'),
+('prod_5', 1, '클래식'),
+('prod_6', 0, '스트릿'),
+('prod_6', 1, '트렌디'),
+('prod_7', 0, '캐주얼'),
+('prod_7', 1, '미니멀'),
+('prod_8', 0, '트렌디'),
+('prod_8', 1, '캐주얼'),
+('prod_9', 0, '미니멀'),
+('prod_9', 1, '스트릿');
+
+DELETE FROM product_feature_composition
+WHERE product_id IN ('prod_1', 'prod_2', 'prod_3', 'prod_4', 'prod_5', 'prod_6', 'prod_7', 'prod_8', 'prod_9');
+
+INSERT INTO product_feature_composition (product_id, position, feature) VALUES
+('prod_1', 0, '로고 락 클로저'),
+('prod_1', 1, '내부 슬립 포켓'),
+('prod_1', 2, '지퍼 수납공간'),
+('prod_2', 0, '가죽 탑 핸들'),
+('prod_2', 1, '지퍼 클로저'),
+('prod_2', 2, '내부 포켓'),
+('prod_3', 0, '체인 핸들'),
+('prod_3', 1, '지퍼 클로저'),
+('prod_4', 0, '메탈 스터드'),
+('prod_4', 1, '양방향 지퍼'),
+('prod_4', 2, '내부 포켓 및 지퍼 수납공간'),
+('prod_5', 0, '가죽 행택과 금속 자물쇠'),
+('prod_5', 1, '지퍼 클로저'),
+('prod_5', 2, '내부 슬립 포켓'),
+('prod_6', 0, '가죽 탑 핸들'),
+('prod_6', 1, '양방향 지퍼'),
+('prod_6', 2, '내부 수납공간'),
+('prod_7', 0, '후크 잠금'),
+('prod_7', 1, '지퍼 파우치'),
+('prod_7', 2, '레더 바닥 패드'),
+('prod_8', 0, '마그네틱 스냅과 드로우스트링'),
+('prod_8', 1, '앞면 플랩 포켓'),
+('prod_8', 2, '내부 슬립 포켓'),
+('prod_9', 0, '앞면 지퍼 포켓'),
+('prod_9', 1, '양방향 지퍼'),
+('prod_9', 2, '내부 포켓');
+
+DELETE FROM product_feature_usage
+WHERE product_id IN ('prod_1', 'prod_2', 'prod_3', 'prod_4', 'prod_5', 'prod_6', 'prod_7', 'prod_8', 'prod_9');
+
+INSERT INTO product_feature_usage (product_id, position, feature) VALUES
+('prod_1', 0, '탈부착 가능한 가죽 스트랩'),
+('prod_1', 1, '길이 조절 가능한 스트랩'),
+('prod_2', 0, '토트백과 숄더백 2way 연출'),
+('prod_2', 1, '탈부착 및 길이 조절 가능한 스트랩'),
+('prod_3', 0, '두 개의 백을 결합하거나 분리하는 투인원 디자인'),
+('prod_3', 1, '길이 조절 가능한 스트랩'),
+('prod_4', 0, '탈부착 가능한 가죽 스트랩'),
+('prod_5', 0, '길이 조절 가능한 숄더 스트랩'),
+('prod_6', 0, '탈부착 및 길이 조절 가능한 패브릭 스트랩'),
+('prod_6', 1, '캐리어 밴드와 폴더블 디자인'),
+('prod_7', 0, '길어진 가죽 스트랩'),
+('prod_7', 1, '탈착 가능한 지퍼 파우치'),
+('prod_8', 0, '길이 조절 가능한 숄더 스트랩'),
+('prod_8', 1, '가죽 탑 핸들'),
+('prod_9', 0, '길이 조절 가능한 패브릭 웨빙 스트랩');

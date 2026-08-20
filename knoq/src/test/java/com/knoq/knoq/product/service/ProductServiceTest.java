@@ -37,6 +37,11 @@ class ProductServiceTest {
                 List.of("S", "M", "L"), List.of("블랙", "베이지"), "https://example.com/thumb.jpg",
                 "브랜드 공식 설명입니다.", null
         );
+        product.updateStructuredFeatures(
+                List.of("캐주얼"),
+                List.of("리브 조직"),
+                List.of("데일리 착용")
+        );
         product.addReferenceImage("front-base64");
         product.addReferenceImage("side-base64");
         product.addReferenceImage("top-base64");
@@ -49,7 +54,9 @@ class ProductServiceTest {
         assertThat(response.productId()).isEqualTo("prod_test1");
         assertThat(response.name()).isEqualTo("테스트 니트");
         assertThat(response.material()).isEqualTo("울 100%");
-        assertThat(response.features()).isEqualTo("가볍고 신축성이 좋습니다");
+        assertThat(response.features().style()).containsExactly("캐주얼");
+        assertThat(response.features().composition()).containsExactly("리브 조직");
+        assertThat(response.features().usage()).containsExactly("데일리 착용");
         assertThat(response.price()).isEqualTo(89000L);
         assertThat(response.size()).containsExactly("S", "M", "L");
         assertThat(response.color()).containsExactly("블랙", "베이지");
@@ -59,7 +66,7 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("material, features가 비어있으면 '정보 없음'으로 대체된다")
+    @DisplayName("material이 비어있으면 기본 문구를, 구조화된 특징이 없으면 빈 목록을 반환한다")
     void getProductDetail_missingInfo_returnsDefaultText() {
         // given
         Product product = Product.of(
@@ -74,7 +81,9 @@ class ProductServiceTest {
 
         // then
         assertThat(response.material()).isEqualTo("정보 없음");
-        assertThat(response.features()).isEqualTo("정보 없음");
+        assertThat(response.features().style()).isEmpty();
+        assertThat(response.features().composition()).isEmpty();
+        assertThat(response.features().usage()).isEmpty();
         assertThat(response.thumbnailUrl()).isNull();
         assertThat(response.images()).isEmpty();
     }

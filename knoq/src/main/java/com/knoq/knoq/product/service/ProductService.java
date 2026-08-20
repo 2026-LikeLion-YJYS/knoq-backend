@@ -3,6 +3,7 @@ package com.knoq.knoq.product.service;
 import com.knoq.knoq.global.exception.ApiException;
 import com.knoq.knoq.global.exception.ErrorCode;
 import com.knoq.knoq.product.dto.ProductDetailResponse;
+import com.knoq.knoq.product.dto.ProductFeaturesResponse;
 import com.knoq.knoq.product.entity.Product;
 import com.knoq.knoq.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,11 @@ public class ProductService {
                 product.getId(),
                 product.getName(),
                 orNoInfo(product.getMaterial()),
-                orNoInfo(product.getFeatures()),
+                new ProductFeaturesResponse(
+                        product.getFeatureStyles(),
+                        product.getFeatureCompositions(),
+                        product.getFeatureUsages()
+                ),
                 product.getPrice(),
                 product.getSizes(),
                 product.getColors(),

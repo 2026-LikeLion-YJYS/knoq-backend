@@ -14,8 +14,8 @@ public record ProductDetailResponse(
         @Schema(example = "비세토스 모노그램 캔버스 + 나파 가죽")
         String material,
 
-        @Schema(example = "길이 조절 및 탈부착 가능한 가죽 스트랩, 내부 슬립 포켓")
-        String features,
+        @Schema(description = "스타일, 구성, 활용 카테고리별 제품 특징")
+        ProductFeaturesResponse features,
 
         @Schema(example = "1690000")
         Long price,

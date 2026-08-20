@@ -4,7 +4,6 @@ import com.knoq.knoq.consultation.entity.ConsultationRequest;
 import com.knoq.knoq.consultation.entity.HelpType;
 import com.knoq.knoq.consultation.entity.RequestStatus;
 import com.knoq.knoq.sessions.entity.LifestyleTag;
-import com.knoq.knoq.sessions.entity.Session;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -30,12 +29,12 @@ public record StaffRequestSummaryResponse(
 
         LocalDateTime requestedAt
 ) {
-    public static StaffRequestSummaryResponse of(ConsultationRequest request, Session session) {
+    public static StaffRequestSummaryResponse of(ConsultationRequest request) {
         return new StaffRequestSummaryResponse(
                 request.getId(),
-                session.getNickname(),
+                request.getNicknameSnapshot(),
                 request.getHelpType(),
-                List.copyOf(session.getLifestyleTags()),
+                List.copyOf(request.getLifestyleTagsSnapshot()),
                 request.getProducts().size(),
                 request.getStatus(),
                 request.getRequestedAt()

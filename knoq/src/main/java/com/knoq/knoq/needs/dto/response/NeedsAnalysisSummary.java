@@ -21,12 +21,28 @@ public class NeedsAnalysisSummary {
     private String comment;
 
     public static NeedsAnalysisSummary from(NeedsAnalysis needsAnalysis) {
+        return of(
+                needsAnalysis.getProductCategory(),
+                needsAnalysis.getPreferredColor(),
+                needsAnalysis.getPreferredMaterial(),
+                needsAnalysis.getPreferredSize(),
+                needsAnalysis.getComment()
+        );
+    }
+
+    public static NeedsAnalysisSummary of(
+            String productCategory,
+            String preferredColor,
+            String preferredMaterial,
+            String preferredSize,
+            String comment
+    ) {
         return NeedsAnalysisSummary.builder()
-                .productCategory(needsAnalysis.getProductCategory())
-                .preferredColor(needsAnalysis.getPreferredColor())
-                .preferredMaterial(needsAnalysis.getPreferredMaterial())
-                .preferredSize(needsAnalysis.getPreferredSize())
-                .comment(needsAnalysis.getComment())
+                .productCategory(productCategory)
+                .preferredColor(preferredColor)
+                .preferredMaterial(preferredMaterial)
+                .preferredSize(preferredSize)
+                .comment(comment)
                 .build();
     }
 }

@@ -34,6 +34,33 @@ CREATE TABLE IF NOT EXISTS product (
     CONSTRAINT uk_product_product_code UNIQUE (product_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS product_feature_style (
+    product_id VARCHAR(64) NOT NULL,
+    position INT NOT NULL,
+    feature VARCHAR(100) NOT NULL,
+    PRIMARY KEY (product_id, position),
+    CONSTRAINT fk_product_feature_style_product
+        FOREIGN KEY (product_id) REFERENCES product (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_feature_composition (
+    product_id VARCHAR(64) NOT NULL,
+    position INT NOT NULL,
+    feature VARCHAR(100) NOT NULL,
+    PRIMARY KEY (product_id, position),
+    CONSTRAINT fk_product_feature_composition_product
+        FOREIGN KEY (product_id) REFERENCES product (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_feature_usage (
+    product_id VARCHAR(64) NOT NULL,
+    position INT NOT NULL,
+    feature VARCHAR(100) NOT NULL,
+    PRIMARY KEY (product_id, position),
+    CONSTRAINT fk_product_feature_usage_product
+        FOREIGN KEY (product_id) REFERENCES product (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS product_color (
     product_id VARCHAR(64) NOT NULL,
     color VARCHAR(255) NULL,
