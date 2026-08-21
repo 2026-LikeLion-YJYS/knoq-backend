@@ -43,11 +43,11 @@ KNOQ는 고객의 방문 세션을 중심으로
 ## 스크린샷 / 시연
 
 <div align="center" style="display: flex; flex-wrap: wrap; justify-content: center;">
-  <img alt="1" src="https://github.com/user-attachments/assets/4ef03ea8-6bf4-42f4-a81d-38f777ef340b" width="24%" style="min-width: 150px; margin: 0px;"/>
-  <img alt="2" src="https://github.com/user-attachments/assets/404d2ca4-a35d-45f3-af92-cd4bf0ff99ca" width="24%" style="min-width: 150px; margin: 0px;"/>
-  <img alt="3" src="https://github.com/user-attachments/assets/4a2e2fe3-2f7f-40ee-82d3-0f83f8bcc39a" width="24%" style="min-width: 150px; margin: 0px;"/>
-  <img alt="4" src="https://github.com/user-attachments/assets/218ed340-a6ce-4e5f-8084-ab98ca4419fb" width="24%" style="min-width: 150px; margin: 0px;"/>
-  <img alt="5" src="https://github.com/user-attachments/assets/1ec2d67b-e2ab-4f0f-916f-249c22d88a44" width="24%" style="min-width: 150px; margin: 0px;"/>
+<img width="1200" height="800" alt="1" src="https://github.com/user-attachments/assets/eb1f6816-1e23-45fa-9104-5ef121856b26" />
+<img width="1200" height="800" alt="2" src="https://github.com/user-attachments/assets/c7691406-ecf3-45e8-85ea-404ff5e43b78" />
+<img width="1200" height="800" alt="3" src="https://github.com/user-attachments/assets/6ec10246-9690-43cd-9448-d846339029d8" />
+<img width="1200" height="800" alt="4" src="https://github.com/user-attachments/assets/ddd3eceb-8cc3-4b1c-b409-196aec0b751e" />
+<img width="1200" height="800" alt="5" src="https://github.com/user-attachments/assets/6e5e3b90-80d2-47b7-b69c-86dccec5e0a7" />
 </div>
 
 ## 버전 정보
