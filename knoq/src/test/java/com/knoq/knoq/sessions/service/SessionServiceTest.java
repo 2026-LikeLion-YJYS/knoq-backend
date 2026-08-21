@@ -215,13 +215,15 @@ class SessionServiceTest {
 
         assertThat(response.storageScope()).isEqualTo(StorageScope.ACCOUNT);
         assertThat(response.accountId()).startsWith("acct_");
+        assertThat(response.sessionId()).isEqualTo(created.sessionId());
+        assertThat(response.sessionToken()).isEqualTo(created.sessionToken());
         assertThat(response.nickname()).isNull();
         assertThat(response.lifestyleTags()).isEmpty();
         assertThat(response.onboardingCompleted()).isFalse();
     }
 
     @Test
-    void 재방문_카카오_계정은_최근_온보딩_정보를_복원한다() {
+    void 같은_매장에서_같은_날_재로그인하면_기존_세션으로_갈아타고_온보딩을_건너뛴다() {
         when(kakaoApiClient.getKakaoUserId("returning-token")).thenReturn(Optional.of(987654321L));
 
         CreateSessionResponse previous = sessionService.createSession(
@@ -247,8 +249,9 @@ class SessionServiceTest {
                 "AI 설명"
         ));
         savedProductService.saveFromCamera(previous.sessionId(), previousProduct.getId());
-        sessionService.finishShopping(previous.sessionId());
+        sessionService.finishShopping(previous.sessionId()); // ACCOUNT라 즉시 만료만 됨 (하드 삭제 X)
 
+        // 같은 날, 같은 매장으로 다시 진입 → 새 세션이 임시로 만들어짐
         CreateSessionResponse current = sessionService.createSession(
                 new CreateSessionRequest(testStore.getStoreCode())
         );
@@ -258,22 +261,66 @@ class SessionServiceTest {
 
         assertThat(response.storageScope()).isEqualTo(StorageScope.ACCOUNT);
         assertThat(response.accountId()).startsWith("acct_");
+        // 방금 만든 세션이 아니라 오늘 처음 로그인했던 세션으로 갈아탐
+        assertThat(response.sessionId()).isEqualTo(previous.sessionId());
+        assertThat(response.sessionToken()).isEqualTo(previous.sessionToken());
         assertThat(response.nickname()).isEqualTo("레몬토끼");
         assertThat(response.lifestyleTags())
                 .containsExactly(LifestyleTag.MINIMAL, LifestyleTag.CLASSIC);
         assertThat(response.onboardingCompleted()).isTrue();
 
-        GetSessionResponse restored = sessionService.getSession(current.sessionId());
+        // 방금 새로 만들어졌던 세션은 정리됨(탐색 아카이브에 하루 1개만 남도록)
+        assertThat(sessionRepository.findById(current.sessionId())).isEmpty();
+        assertThat(savedProductRepository.findBySessionIdOrderBySavedAtDesc(current.sessionId())).isEmpty();
+
+        GetSessionResponse restored = sessionService.getSession(response.sessionId());
         assertThat(restored.nickname()).isEqualTo("레몬토끼");
         assertThat(restored.lifestyleTags())
                 .containsExactly(LifestyleTag.MINIMAL, LifestyleTag.CLASSIC);
         assertThat(savedProductRepository.findBySessionIdAndProductId(
-                current.sessionId(), previousProduct.getId()
+                response.sessionId(), previousProduct.getId()
         ))
                 .isPresent()
                 .get()
                 .extracting(savedProduct -> savedProduct.getSource())
                 .isEqualTo(SavedProductSource.CAMERA);
+    }
+
+    @Test
+    void 같은_날_다른_매장으로_재로그인해도_오늘_세션을_재사용하고_온보딩을_건너뛴다() {
+        when(kakaoApiClient.getKakaoUserId("multi-store-token")).thenReturn(Optional.of(555666777L));
+
+        CreateSessionResponse firstStoreSession = sessionService.createSession(
+                new CreateSessionRequest(testStore.getStoreCode())
+        );
+        sessionService.kakaoLogin(firstStoreSession.sessionId(), new KakaoLoginRequest("multi-store-token"));
+        sessionService.setNickname(firstStoreSession.sessionId(), new NicknameRequest("구름토끼"));
+        sessionService.updateLifestyleTags(
+                firstStoreSession.sessionId(),
+                new LifestyleTagsRequest(List.of(LifestyleTag.CASUAL))
+        );
+
+        Store otherStore = storeRepository.save(
+                Store.of("SESSION-TEST-OTHER-" + UUID.randomUUID().toString().substring(0, 8), "다른 매장")
+        );
+        CreateSessionResponse secondStoreSession = sessionService.createSession(
+                new CreateSessionRequest(otherStore.getStoreCode())
+        );
+        KakaoLoginResponse response = sessionService.kakaoLogin(
+                secondStoreSession.sessionId(), new KakaoLoginRequest("multi-store-token")
+        );
+
+        assertThat(response.sessionId()).isEqualTo(firstStoreSession.sessionId());
+        assertThat(response.sessionToken()).isEqualTo(firstStoreSession.sessionToken());
+        assertThat(response.onboardingCompleted()).isTrue();
+        assertThat(response.lifestyleTags()).containsExactly(LifestyleTag.CASUAL);
+        assertThat(response.nickname()).isEqualTo("구름토끼");
+        assertThat(sessionRepository.findById(secondStoreSession.sessionId())).isEmpty();
+        assertThat(sessionRepository.findById(firstStoreSession.sessionId()))
+                .isPresent()
+                .get()
+                .extracting(Session::getStoreId)
+                .isEqualTo(otherStore.getId());
     }
 
     @Test
@@ -287,6 +334,8 @@ class SessionServiceTest {
 
         assertThat(response.storageScope()).isEqualTo(StorageScope.PRIVATE);
         assertThat(response.accountId()).isNull();
+        assertThat(response.sessionId()).isEqualTo(created.sessionId());
+        assertThat(response.sessionToken()).isEqualTo(created.sessionToken());
         assertThat(response.nickname()).isNull();
         assertThat(response.lifestyleTags()).isEmpty();
         assertThat(response.onboardingCompleted()).isFalse();
@@ -374,7 +423,7 @@ class SessionServiceTest {
     }
 
     @Test
-    void ACCOUNT_세션에_로그아웃하면_PRIVATE로_돌아간다() {
+    void ACCOUNT_세션에_로그아웃해도_계정과_아카이브_연결은_남기고_세션만_만료한다() {
         CreateSessionResponse created = sessionService.createSession(new CreateSessionRequest(testStore.getStoreCode()));
         when(kakaoApiClient.getKakaoUserId("valid-token")).thenReturn(Optional.of(888L));
         sessionService.kakaoLogin(created.sessionId(), new KakaoLoginRequest("valid-token")); // ACCOUNT로 전환
@@ -382,8 +431,9 @@ class SessionServiceTest {
         sessionService.logout(created.sessionId());
 
         Session found = sessionRepository.findById(created.sessionId()).orElseThrow();
-        assertThat(found.getStorageScope()).isEqualTo(StorageScope.PRIVATE);
-        assertThat(found.getAccountId()).isNull();
+        assertThat(found.getStorageScope()).isEqualTo(StorageScope.ACCOUNT);
+        assertThat(found.getAccountId()).isNotNull();
+        assertThat(found.getExpiresAt()).isBeforeOrEqualTo(LocalDateTime.now());
     }
 
     @Test

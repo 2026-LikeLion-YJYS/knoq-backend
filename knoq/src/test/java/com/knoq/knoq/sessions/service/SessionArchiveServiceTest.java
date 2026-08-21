@@ -70,27 +70,56 @@ class SessionArchiveServiceTest {
     }
 
     @Test
-    void 같은_계정의_방문과_저장제품을_최근순으로_반환한다() {
+    void 같은_계정으로_같은_날_다른_매장을_방문해도_아카이브는_하나만_반환한다() {
         when(kakaoApiClient.getKakaoUserId("same-account"))
                 .thenReturn(Optional.of(12345L));
+        Store otherStore = storeRepository.save(
+                Store.of("ARCHIVE-OTHER-" + UUID.randomUUID().toString().substring(0, 8), "다른 아카이브 매장")
+        );
 
-        CreateSessionResponse previous = createAccountSession();
+        CreateSessionResponse previous = createAccountSession(store);
         savedProductService.saveFromCamera(previous.sessionId(), productId);
         sessionService.finishShopping(previous.sessionId());
 
-        CreateSessionResponse current = createAccountSession();
+        CreateSessionResponse fresh = sessionService.createSession(
+                new CreateSessionRequest(otherStore.getStoreCode())
+        );
+        var loginResponse = sessionService.kakaoLogin(
+                fresh.sessionId(), new KakaoLoginRequest("same-account")
+        );
 
-        SessionArchiveResponse response = sessionService.getArchive(current.sessionId());
+        SessionArchiveResponse response = sessionService.getArchive(loginResponse.sessionId());
 
-        assertThat(response.count()).isEqualTo(2);
+        assertThat(response.count()).isEqualTo(1);
         assertThat(response.visits()).extracting(SessionArchiveResponse.Visit::sessionId)
-                .containsExactly(current.sessionId(), previous.sessionId());
+                .containsExactly(previous.sessionId());
         assertThat(response.visits().get(0).isCurrent()).isTrue();
-        assertThat(response.visits().get(1).isCurrent()).isFalse();
-        assertThat(response.visits().get(1).products()).hasSize(1);
-        assertThat(response.visits().get(1).products().get(0).name()).isEqualTo("테스트 가방");
-        assertThat(response.visits().get(1).products().get(0).thumbnailUrl())
+        assertThat(response.visits().get(0).products()).hasSize(1);
+        assertThat(response.visits().get(0).products().get(0).name()).isEqualTo("테스트 가방");
+        assertThat(response.visits().get(0).products().get(0).thumbnailUrl())
                 .isEqualTo("/products/archive.png");
+    }
+
+    @Test
+    void 같은_매장을_같은_날_재방문하면_아카이브에_하나로만_남는다() {
+        when(kakaoApiClient.getKakaoUserId("same-account-same-store"))
+                .thenReturn(Optional.of(67890L));
+
+        CreateSessionResponse first = sessionService.createSession(new CreateSessionRequest(store.getStoreCode()));
+        sessionService.kakaoLogin(first.sessionId(), new KakaoLoginRequest("same-account-same-store"));
+        savedProductService.saveFromCamera(first.sessionId(), productId);
+        sessionService.finishShopping(first.sessionId());
+
+        CreateSessionResponse second = sessionService.createSession(new CreateSessionRequest(store.getStoreCode()));
+        var loginResponse = sessionService.kakaoLogin(
+                second.sessionId(), new KakaoLoginRequest("same-account-same-store")
+        );
+
+        SessionArchiveResponse response = sessionService.getArchive(loginResponse.sessionId());
+
+        assertThat(response.count()).isEqualTo(1);
+        assertThat(response.visits().get(0).sessionId()).isEqualTo(first.sessionId());
+        assertThat(response.visits().get(0).products()).hasSize(1);
     }
 
     @Test
@@ -105,9 +134,9 @@ class SessionArchiveServiceTest {
                 );
     }
 
-    private CreateSessionResponse createAccountSession() {
+    private CreateSessionResponse createAccountSession(Store targetStore) {
         CreateSessionResponse session = sessionService.createSession(
-                new CreateSessionRequest(store.getStoreCode())
+                new CreateSessionRequest(targetStore.getStoreCode())
         );
         sessionService.kakaoLogin(session.sessionId(), new KakaoLoginRequest("same-account"));
         return session;

@@ -7,6 +7,7 @@ import com.knoq.knoq.needs.dto.response.NeedsAnalysisResponse;
 import com.knoq.knoq.needs.dto.response.NeedsAnalysisResultResponse;
 import com.knoq.knoq.needs.entity.NeedsAnalysis;
 import com.knoq.knoq.needs.repository.NeedsAnalysisRepository;
+import com.knoq.knoq.needs.support.PreferredMaterialNormalizer;
 import com.knoq.knoq.saved.entity.SavedProduct;
 import com.knoq.knoq.saved.repository.SavedProductRepository;
 import com.knoq.knoq.sessions.service.SessionExpirationService;
@@ -51,13 +52,40 @@ public class NeedsAnalysisService {
             throw new ApiException(ErrorCode.NEEDS_ANALYSIS_NOT_ENOUGH_SAVED_PRODUCTS);
         }
 
+        NeedsAnalysis needsAnalysis = needsAnalysisRepository.findBySessionId(sessionId)
+                .orElseGet(() -> NeedsAnalysis.of(sessionId));
+
+        // 사용자가 PUT으로 네 항목을 이미 직접 수정했다면, 재분석해도 그 값은 그대로 두고 comment만 새로 만듦
+        if (needsAnalysis.isUserEdited()) {
+            String generatedComment = needsCommentGenerator.generateFromSelections(
+                    needsAnalysis.getProductCategory(),
+                    needsAnalysis.getPreferredColor(),
+                    needsAnalysis.getPreferredMaterial(),
+                    needsAnalysis.getPreferredSize()
+            );
+            String comment = (generatedComment == null || generatedComment.isBlank())
+                    ? NeedsAnalysisAggregator.buildSelectionComment(
+                            needsAnalysis.getProductCategory(),
+                            needsAnalysis.getPreferredColor(),
+                            needsAnalysis.getPreferredMaterial(),
+                            needsAnalysis.getPreferredSize()
+                    )
+                    : generatedComment;
+            needsAnalysis.updateComment(comment);
+            needsAnalysisRepository.save(needsAnalysis);
+            return NeedsAnalysisResultResponse.from(needsAnalysis);
+        }
+
         List<String> productIds = savedProducts.stream().map(SavedProduct::getProductId).toList();
         List<ProductAttributes> attributes = productAttributeProvider.getAttributes(productIds);
 
         String category = NeedsAnalysisAggregator.mostFrequent(
                 attributes.stream().map(ProductAttributes::category).toList());
         String material = NeedsAnalysisAggregator.mostFrequent(
-                attributes.stream().map(ProductAttributes::material).toList());
+                attributes.stream()
+                        .map(ProductAttributes::material)
+                        .map(PreferredMaterialNormalizer::normalize)
+                        .toList());
         String color = NeedsAnalysisAggregator.mostFrequent(
                 attributes.stream().flatMap(a -> a.colors().stream()).toList());
         String size = NeedsAnalysisAggregator.mostFrequent(
@@ -68,8 +96,6 @@ public class NeedsAnalysisService {
                 ? templateComment
                 : generatedComment;
 
-        NeedsAnalysis needsAnalysis = needsAnalysisRepository.findBySessionId(sessionId)
-                .orElseGet(() -> NeedsAnalysis.of(sessionId));
         needsAnalysis.updateResult(category, color, material, size, comment);
         needsAnalysisRepository.save(needsAnalysis);
 
