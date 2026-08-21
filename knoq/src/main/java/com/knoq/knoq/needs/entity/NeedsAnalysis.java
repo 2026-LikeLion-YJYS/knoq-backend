@@ -38,6 +38,11 @@ public class NeedsAnalysis {
     @Column(name = "analyzed_at", nullable = false)
     private LocalDateTime analyzedAt;
 
+    // 사용자가 PUT으로 네 항목을 한 번이라도 직접 수정했으면 true.
+    // true인 동안은 POST 재분석이 이 네 항목을 다시 집계해서 덮어쓰지 않고 comment만 새로 생성함.
+    @Column(name = "user_edited", nullable = false)
+    private boolean userEdited = false;
+
     private NeedsAnalysis(String sessionId) {
         this.sessionId = sessionId;
     }
@@ -56,11 +61,18 @@ public class NeedsAnalysis {
         this.analyzedAt = LocalDateTime.now();
     }
 
+    // 재분석(POST)이 네 항목은 그대로 두고 comment만 새로 만들 때 씀
+    public void updateComment(String comment) {
+        this.comment = comment;
+        this.analyzedAt = LocalDateTime.now();
+    }
+
     public void updateUserSelections(String productCategory, String preferredColor,
                                      String preferredMaterial, String preferredSize) {
         this.productCategory = productCategory;
         this.preferredColor = preferredColor;
         this.preferredMaterial = preferredMaterial;
         this.preferredSize = preferredSize;
+        this.userEdited = true;
     }
 }

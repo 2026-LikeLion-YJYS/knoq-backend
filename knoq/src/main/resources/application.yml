@@ -2,6 +2,12 @@ spring:
   application:
     name: knoq
 
+  servlet:
+    multipart:
+      # 모바일 카메라 원본은 Spring Boot 기본 한도(파일당 1MB)를 쉽게 넘는다.
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:10MB}
+
   profiles:
     default: local
 
@@ -42,6 +48,7 @@ knoq:
 
   recognition:
     threshold-enabled: ${RECOGNITION_THRESHOLD_ENABLED:true}
+    mock-fallback-enabled: ${RECOGNITION_MOCK_FALLBACK_ENABLED:true}
 
   saved:
     max-products: ${SAVED_PRODUCT_MAX_PRODUCTS:9}
@@ -51,6 +58,7 @@ knoq:
 
   openai:
     api-key: ${OPENAI_API_KEY:dummy-key-for-local}
+    vision-model: ${OPENAI_VISION_MODEL:gpt-4o-mini}
 
 ---
 spring:
@@ -83,6 +91,7 @@ knoq:
 
   recognition:
     threshold-enabled: ${RECOGNITION_THRESHOLD_ENABLED:true}
+    mock-fallback-enabled: ${RECOGNITION_MOCK_FALLBACK_ENABLED:false}
 
   saved:
     max-products: ${SAVED_PRODUCT_MAX_PRODUCTS:9}
@@ -92,3 +101,4 @@ knoq:
 
   openai:
     api-key: ${OPENAI_API_KEY}
+    vision-model: ${OPENAI_VISION_MODEL:gpt-4o-mini}

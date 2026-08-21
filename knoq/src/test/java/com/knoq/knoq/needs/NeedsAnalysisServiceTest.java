@@ -115,7 +115,7 @@ class NeedsAnalysisServiceTest {
                 "prod_needs_1",
                 "PD-NEEDS-1",
                 "울 니트 A",
-                "울",
+                "비세토스 모노그램 캔버스 + 나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -124,7 +124,7 @@ class NeedsAnalysisServiceTest {
                 "prod_needs_2",
                 "PD-NEEDS-2",
                 "울 니트 B",
-                "울",
+                "비세토스 모노그램 캔버스 + 나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -151,7 +151,7 @@ class NeedsAnalysisServiceTest {
                 needsAnalysisService.analyze(session.getId());
 
         assertThat(result.getProductCategory()).isEqualTo("상의");
-        assertThat(result.getPreferredMaterial()).isEqualTo("울");
+        assertThat(result.getPreferredMaterial()).isEqualTo("Visetos");
         assertThat(result.getPreferredColor()).isEqualTo("블랙");
         assertThat(result.getPreferredSize()).isEqualTo("M");
         assertThat(result.getComment()).isNotBlank();
@@ -166,7 +166,7 @@ class NeedsAnalysisServiceTest {
         assertThat(response.getAnalysis().getProductCategory())
                 .isEqualTo("상의");
         assertThat(response.getAnalysis().getPreferredMaterial())
-                .isEqualTo("울");
+                .isEqualTo("Visetos");
         assertThat(response.getAnalysis().getPreferredColor())
                 .isEqualTo("블랙");
         assertThat(response.getAnalysis().getPreferredSize())
@@ -184,7 +184,7 @@ class NeedsAnalysisServiceTest {
                 "prod_comment_1",
                 "PD-COMMENT-1",
                 "울 니트 A",
-                "울",
+                "나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -193,7 +193,7 @@ class NeedsAnalysisServiceTest {
                 "prod_comment_2",
                 "PD-COMMENT-2",
                 "울 니트 B",
-                "울",
+                "나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -217,7 +217,7 @@ class NeedsAnalysisServiceTest {
                 "prod_fallback_1",
                 "PD-FALLBACK-1",
                 "울 니트 A",
-                "울",
+                "나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -226,7 +226,7 @@ class NeedsAnalysisServiceTest {
                 "prod_fallback_2",
                 "PD-FALLBACK-2",
                 "울 니트 B",
-                "울",
+                "나파 가죽",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -241,7 +241,7 @@ class NeedsAnalysisServiceTest {
         NeedsAnalysisResultResponse result = needsAnalysisService.analyze(session.getId());
 
         assertThat(result.getComment())
-                .isEqualTo("저장하신 제품들은 주로 울 소재, 블랙 계열, M 사이즈를 선호하시는 경향이 있습니다.");
+                .isEqualTo("저장하신 제품들은 주로 Leather 소재, 블랙 계열, M 사이즈를 선호하시는 경향이 있습니다.");
     }
 
     @Test
@@ -251,7 +251,7 @@ class NeedsAnalysisServiceTest {
                 "prod_wool_1",
                 "PD-WOOL-1",
                 "울 제품 A",
-                "울",
+                "비세토스 캔버스",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -260,7 +260,7 @@ class NeedsAnalysisServiceTest {
                 "prod_wool_2",
                 "PD-WOOL-2",
                 "울 제품 B",
-                "울",
+                "비세토스 캔버스",
                 List.of("M"),
                 List.of("블랙")
         );
@@ -269,7 +269,7 @@ class NeedsAnalysisServiceTest {
                 "prod_cotton_1",
                 "PD-COTTON-1",
                 "면 제품 A",
-                "면",
+                "나일론 100%",
                 List.of("L"),
                 List.of("화이트")
         );
@@ -278,7 +278,7 @@ class NeedsAnalysisServiceTest {
                 "prod_cotton_2",
                 "PD-COTTON-2",
                 "면 제품 B",
-                "면",
+                "나일론 100%",
                 List.of("L"),
                 List.of("화이트")
         );
@@ -298,7 +298,7 @@ class NeedsAnalysisServiceTest {
         NeedsAnalysisResultResponse firstResult =
                 needsAnalysisService.analyze(session.getId());
 
-        assertThat(firstResult.getPreferredMaterial()).isEqualTo("울");
+        assertThat(firstResult.getPreferredMaterial()).isEqualTo("Visetos");
         assertThat(firstResult.getPreferredColor()).isEqualTo("블랙");
         assertThat(firstResult.getPreferredSize()).isEqualTo("M");
         assertThat(needsAnalysisRepository.count()).isEqualTo(1);
@@ -311,7 +311,7 @@ class NeedsAnalysisServiceTest {
         NeedsAnalysisResultResponse secondResult =
                 needsAnalysisService.analyze(session.getId());
 
-        assertThat(secondResult.getPreferredMaterial()).isEqualTo("면");
+        assertThat(secondResult.getPreferredMaterial()).isEqualTo("Nylon");
         assertThat(secondResult.getPreferredColor()).isEqualTo("화이트");
         assertThat(secondResult.getPreferredSize()).isEqualTo("L");
 
@@ -322,7 +322,54 @@ class NeedsAnalysisServiceTest {
                         .findBySessionId(session.getId())
                         .orElseThrow()
                         .getPreferredMaterial()
-        ).isEqualTo("면");
+        ).isEqualTo("Nylon");
+    }
+
+    @Test
+    @DisplayName("사용자가 직접 수정한 네 항목은 재분석해도 바뀌지 않고 코멘트만 새로 생성된다")
+    void analyze_keeps_user_edited_fields_and_only_regenerates_comment() {
+        Product productA = createProduct(
+                "prod_edit_1", "PD-EDIT-1", "가방 A", "비세토스 캔버스", List.of("M"), List.of("블랙")
+        );
+        Product productB = createProduct(
+                "prod_edit_2", "PD-EDIT-2", "가방 B", "비세토스 캔버스", List.of("M"), List.of("블랙")
+        );
+        productRepository.saveAll(List.of(productA, productB));
+        saveProduct(productA, SavedProductSource.CAMERA);
+        saveProduct(productB, SavedProductSource.RECOMMEND);
+
+        needsAnalysisService.analyze(session.getId()); // 최초 자동 분석
+
+        NeedsAnalysisResultResponse edited = needsAnalysisService.updateAnalysis(
+                session.getId(),
+                new UpdateNeedsAnalysisRequest("토트백 / 쇼퍼백", "Black · Cognac", "Leather", "Medium · Large")
+        );
+        LocalDateTime editedAnalyzedAt = edited.getAnalyzedAt();
+
+        when(needsCommentGenerator.generateFromSelections(
+                "토트백 / 쇼퍼백", "Black · Cognac", "Leather", "Medium · Large"
+        )).thenReturn("Black · Cognac 컬러의 Medium · Large 사이즈 Leather 토트백과 쇼퍼백을 선호하고 계세요.");
+
+        NeedsAnalysisResultResponse reanalyzed = needsAnalysisService.analyze(session.getId());
+
+        // 사용자가 고른 네 항목은 재분석 이후에도 그대로 유지됨 (저장된 제품 속성으로 재집계되지 않음)
+        assertThat(reanalyzed.getProductCategory()).isEqualTo("토트백 / 쇼퍼백");
+        assertThat(reanalyzed.getPreferredColor()).isEqualTo("Black · Cognac");
+        assertThat(reanalyzed.getPreferredMaterial()).isEqualTo("Leather");
+        assertThat(reanalyzed.getPreferredSize()).isEqualTo("Medium · Large");
+        // comment만 그 네 항목을 기준으로 새로 생성됨
+        assertThat(reanalyzed.getComment()).isEqualTo(
+                "Black · Cognac 컬러의 Medium · Large 사이즈 Leather 토트백과 쇼퍼백을 선호하고 계세요."
+        );
+        assertThat(reanalyzed.getAnalyzedAt()).isAfter(editedAnalyzedAt);
+        assertThat(needsAnalysisRepository.count()).isEqualTo(1);
+
+        NeedsAnalysis saved = needsAnalysisRepository.findBySessionId(session.getId()).orElseThrow();
+        assertThat(saved.getProductCategory()).isEqualTo("토트백 / 쇼퍼백");
+        assertThat(saved.getPreferredColor()).isEqualTo("Black · Cognac");
+        assertThat(saved.getPreferredMaterial()).isEqualTo("Leather");
+        assertThat(saved.getPreferredSize()).isEqualTo("Medium · Large");
+        assertThat(saved.getComment()).isEqualTo(reanalyzed.getComment());
     }
 
     @Test

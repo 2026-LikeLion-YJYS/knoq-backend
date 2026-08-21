@@ -2,6 +2,7 @@ package com.knoq.knoq.needs.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record UpdateNeedsAnalysisRequest(
@@ -17,7 +18,8 @@ public record UpdateNeedsAnalysisRequest(
 
         @NotBlank
         @Size(max = 100)
-        @Schema(example = "Leather")
+        @Pattern(regexp = "Visetos|Leather|Canvas|Nylon")
+        @Schema(example = "Leather", allowableValues = {"Visetos", "Leather", "Canvas", "Nylon"})
         String preferredMaterial,
 
         @NotBlank

@@ -39,7 +39,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -53,6 +55,8 @@ import java.util.stream.Collectors;
 public class SessionService {
     private static final String ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
     private static final SecureRandom RANDOM = new SecureRandom();
+    // 탐색 아카이브 하루 1개 정책의 "하루" 경계 기준(한국시간 자정)
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     // FR-101: 닉네임 관련 — 데모용으로 간단히 준비한 목록
     private static final List<String> FORBIDDEN_WORDS = List.of("시발", "씨발", "개새끼", "병신", "관리자", "admin");
@@ -234,27 +238,67 @@ public class SessionService {
         if (kakaoUserId.isEmpty()) {
             // 카카오 인증 실패해도 에러로 막지 않고, PRIVATE로 되돌린 뒤 200으로 응답
             session.usePrivateStorage();
-            return new KakaoLoginResponse(StorageScope.PRIVATE, null, null, List.of(), false);
+            return new KakaoLoginResponse(
+                    StorageScope.PRIVATE, null, session.getId(), session.getToken(), null, List.of(), false
+            );
         }
 
         // 이 카카오 계정으로 이미 만들어진 Account가 있으면 재사용, 없으면 새로 생성
         Account account = accountRepository.findByKakaoUserId(kakaoUserId.get())
                 .orElseGet(() -> accountRepository.save(Account.of(generateAccountId(), kakaoUserId.get())));
 
+        // 탐색 아카이브 하루 1개 정책: 매장과 무관하게 같은 계정으로 "오늘"(한국시간 자정 기준) 이미 로그인한
+        // 세션이 있으면 새 세션을 만들지 않고 그 세션으로 갈아탐 (온보딩도 다시 안 보여줌)
+        Optional<Session> todaySession = sessionRepository
+                .findFirstByAccountIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        account.getId(), todayStart()
+                )
+                .filter(existing -> !existing.getId().equals(session.getId()));
+
+        if (todaySession.isPresent()) {
+            return reuseTodaySession(session, todaySession.get(), account);
+        }
+
+        return startFirstLoginOfDay(session, account);
+    }
+
+    // 오늘의 두 번째 이상 로그인: 기존 일일 세션을 재사용하고, 방금 새로 만들어졌던 세션은 정리
+    private KakaoLoginResponse reuseTodaySession(Session freshSession, Session todaySession, Account account) {
+        // finishShopping()으로 이미 종료(즉시 만료)됐을 수 있어서, restoreFromPreviousSessions가 내부적으로
+        // 유효성 검사를 하기 전에 먼저 만료시간을 되살려놔야 함
+        todaySession.refreshExpiration(LocalDateTime.now().plusMinutes(expiryMinutes));
+
+        // 방금 만들어진 세션 쪽에 저장된 게 있었다면(로그인 전에 잠깐 둘러본 경우) 재사용할 세션으로 옮겨줌
+        savedProductService.restoreFromPreviousSessions(todaySession.getId(), List.of(freshSession.getId()));
+        // 임시 세션을 지우기 전에 옮겨진 저장 제품 원본도 정리해 orphan row를 남기지 않는다.
+        savedProductService.deleteAll(freshSession.getId());
+        // 다른 매장으로 재진입한 경우 오늘 세션의 현재 매장을 갱신한다.
+        todaySession.updateStore(freshSession.getStoreId());
+        sessionRepository.delete(freshSession);
+
+        return new KakaoLoginResponse(
+                todaySession.getStorageScope(),
+                account.getId(),
+                todaySession.getId(),
+                todaySession.getToken(),
+                todaySession.getNickname(),
+                todaySession.getLifestyleTags(),
+                true // 재사용된 세션은 이미 오늘 온보딩을 마쳤으므로 항상 완료 상태
+        );
+    }
+
+    // 오늘의 첫 로그인: 닉네임은 이전에 쓰던 값을 "추천값"으로만 채워주고(자동 확정 아님),
+    // 라이프스타일 태그는 매일 새로 고르게 하므로 복원하지 않음
+    private KakaoLoginResponse startFirstLoginOfDay(Session session, Account account) {
         List<Session> previousSessions = sessionRepository
                 .findByAccountIdOrderByCreatedAtDesc(account.getId()).stream()
                 .filter(previous -> !previous.getId().equals(session.getId()))
                 .toList();
 
-        if (!hasCompletedOnboarding(session)) {
-            previousSessions.stream()
-                    .filter(this::hasCompletedOnboarding)
-                    .findFirst()
-                    .ifPresent(previous -> {
-                        session.updateNickname(previous.getNickname());
-                        session.updateLifestyleTags(previous.getLifestyleTags());
-                    });
-        }
+        String suggestedNickname = sessionRepository
+                .findFirstByAccountIdAndNicknameIsNotNullOrderByCreatedAtDesc(account.getId())
+                .map(Session::getNickname)
+                .orElse(null);
 
         session.linkAccount(account.getId());
         savedProductService.restoreFromPreviousSessions(
@@ -265,17 +309,16 @@ public class SessionService {
         return new KakaoLoginResponse(
                 session.getStorageScope(),
                 account.getId(),
-                session.getNickname(),
-                session.getLifestyleTags(),
-                hasCompletedOnboarding(session)
+                session.getId(),
+                session.getToken(),
+                suggestedNickname,
+                List.of(),
+                false
         );
     }
 
-    private boolean hasCompletedOnboarding(Session session) {
-        return session.getNickname() != null
-                && !session.getNickname().isBlank()
-                && session.getLifestyleTags() != null
-                && !session.getLifestyleTags().isEmpty();
+    private LocalDateTime todayStart() {
+        return LocalDate.now(KST).atStartOfDay();
     }
 
     @Transactional
@@ -338,8 +381,14 @@ public class SessionService {
     @Transactional
     public void logout(String sessionId) {
         Session session = sessionExpirationService.getValidSessionAndRefresh(sessionId);
-        // "카카오 로그인"의 반대 동작 — 이미 만들어둔 usePrivateStorage()를 그대로 재사용
-        // (storageScope를 PRIVATE로 되돌리고 accountId도 비움)
+        if (session.getStorageScope() == StorageScope.ACCOUNT) {
+            // 로그아웃은 현재 인증만 종료한다. accountId/storageScope를 지우면
+            // 오늘 탐색 아카이브가 카카오 계정에서 분리되므로 세션은 남기고 만료만 시킨다.
+            session.endSession();
+            return;
+        }
+
+        // 계정에 연결되지 않은 세션은 기존 PRIVATE 상태를 유지한다.
         session.usePrivateStorage();
     }
 

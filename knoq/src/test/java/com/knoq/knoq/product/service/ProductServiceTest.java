@@ -59,6 +59,7 @@ class ProductServiceTest {
         assertThat(response.features().composition()).containsExactly("리브 조직");
         assertThat(response.features().compositionImageUrl()).isNull();
         assertThat(response.features().usage()).containsExactly("데일리 착용");
+        assertThat(response.features().usageImageUrl()).isNull();
         assertThat(response.price()).isEqualTo(89000L);
         assertThat(response.size()).containsExactly("S", "M", "L");
         assertThat(response.color()).containsExactly("블랙", "베이지");
@@ -91,7 +92,7 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("데모 제품은 스타일과 구성 이미지 URL을 반환한다")
+    @DisplayName("데모 제품은 스타일과 구성, 활용 이미지 URL을 반환한다")
     void getProductDetail_demoProduct_returnsFeatureImageUrls() {
         Product product = Product.of(
                 "prod_1", "PD-DEMO-1", "데모 가방", "가죽", "특징", 100_000L,
@@ -106,6 +107,8 @@ class ProductServiceTest {
                 .isEqualTo("/demo/products/prod_1/style.png");
         assertThat(response.features().compositionImageUrl())
                 .isEqualTo("/demo/products/prod_1/composition.png");
+        assertThat(response.features().usageImageUrl())
+                .isEqualTo("/demo/products/prod_1/usage.png");
         assertThat(response.images()).containsExactly(
                 "/demo/products/prod_1/front.png",
                 "/demo/products/prod_1/side.png",
