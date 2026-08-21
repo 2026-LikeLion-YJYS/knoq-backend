@@ -1,0 +1,41 @@
+package com.knoq.knoq.product.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
+import java.util.List;
+
+public record ProductDetailResponse(
+        @Schema(example = "prod_1")
+        String productId,
+
+        @Schema(example = "Tracy 비세토스 호보")
+        String name,
+
+        @Schema(example = "비세토스 모노그램 캔버스 + 나파 가죽")
+        String material,
+
+        @Schema(description = "스타일, 구성, 활용 카테고리별 제품 특징")
+        ProductFeaturesResponse features,
+
+        @Schema(example = "1690000")
+        Long price,
+
+        @Schema(example = "[\"L\", \"11 x 33 x 31 cm\"]")
+        List<String> size,
+
+        @Schema(example = "[\"Cognac\"]")
+        List<String> color,
+
+        @Schema(example = "/demo/products/prod_1/front.png")
+        String thumbnailUrl,
+
+        @Schema(
+                description = "정면, 측면, 윗면, 상세 순서의 정적 이미지 URL 목록. 이미지가 없으면 빈 배열",
+                example = "[\"/demo/products/prod_1/front.png\", \"/demo/products/prod_1/side.png\", \"/demo/products/prod_1/top.png\", \"/demo/products/prod_1/detail.png\"]"
+        )
+        List<String> images,
+
+        @Schema(example = "클래식한 모노그램과 가죽 트림이 돋보이는 포멀한 호보백입니다.")
+        String aiGenerated
+) {
+}

@@ -1,0 +1,18 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: knoq-mysql
+    environment:
+      MYSQL_DATABASE: knoq
+      MYSQL_ROOT_PASSWORD: knoq1234
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - knoq-mysql-data:/var/lib/mysql
+
+volumes:
+  knoq-mysql-data:

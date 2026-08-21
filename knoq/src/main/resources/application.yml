@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: knoq
+
+  profiles:
+    default: local
+
+server:
+  forward-headers-strategy: framework
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: ${LOCAL_DB_URL:jdbc:mysql://localhost:3306/knoq?characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${LOCAL_DB_USERNAME:root}
+    password: ${LOCAL_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+knoq:
+  jwt:
+    secret: ${JWT_SECRET}
+
+  staff:
+    pin: ${STAFF_PIN}
+    token-expiry-hours: ${STAFF_TOKEN_EXPIRY_HOURS:12}
+
+  session:
+    expiry-minutes: ${SESSION_EXPIRY_MINUTES:60}
+
+  recognition:
+    threshold-enabled: ${RECOGNITION_THRESHOLD_ENABLED:true}
+
+  saved:
+    max-products: ${SAVED_PRODUCT_MAX_PRODUCTS:9}
+
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+  openai:
+    api-key: ${OPENAI_API_KEY:dummy-key-for-local}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+knoq:
+  jwt:
+    secret: ${JWT_SECRET}
+
+  staff:
+    pin: ${STAFF_PIN}
+    token-expiry-hours: ${STAFF_TOKEN_EXPIRY_HOURS:12}
+
+  session:
+    expiry-minutes: ${SESSION_EXPIRY_MINUTES:60}
+
+  recognition:
+    threshold-enabled: ${RECOGNITION_THRESHOLD_ENABLED:true}
+
+  saved:
+    max-products: ${SAVED_PRODUCT_MAX_PRODUCTS:9}
+
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+  openai:
+    api-key: ${OPENAI_API_KEY}
